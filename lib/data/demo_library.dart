@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+
+import '../models/album.dart';
+import '../models/track.dart';
+import '../theme/aetheris_colors.dart';
+
+const List<String> demoLyrics = [
+  'A quiet pulse under the city lights',
+  'Signal blooms where the skyline fades',
+  'Every breath turns into stereo',
+  'Clear sky opens over violet waves',
+  'Hold the rhythm, let the silence move',
+  'Beyond sound, we arrive weightless',
+];
+
+const List<Track> demoTracks = [
+  Track(
+    id: 'clear-sky',
+    title: 'Clear Sky',
+    artist: 'Aetheris Collection',
+    album: 'Beyond Sound',
+    format: 'FLAC',
+    bitDepth: 24,
+    sampleRateKhz: 96,
+    duration: Duration(minutes: 3, seconds: 42),
+    coverColors: [Color(0xFF0F273F), Color(0xFF8C5B7D), Color(0xFF101422)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    isBitPerfect: true,
+    playCount: 247,
+  ),
+  Track(
+    id: 'ethereal-echoes',
+    title: 'Ethereal Echoes',
+    artist: 'Nova Sounds',
+    album: 'Nebula Rooms',
+    format: 'FLAC',
+    bitDepth: 24,
+    sampleRateKhz: 192,
+    duration: Duration(minutes: 4, seconds: 18),
+    coverColors: [Color(0xFF29112B), Color(0xFF0AB3B5), Color(0xFF101018)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    isBitPerfect: true,
+    playCount: 121,
+  ),
+  Track(
+    id: 'midnight-synth',
+    title: 'Midnight Synthesis',
+    artist: 'The Architect',
+    album: 'Glass Cities',
+    format: 'WAV',
+    bitDepth: 24,
+    sampleRateKhz: 96,
+    duration: Duration(minutes: 5, seconds: 4),
+    coverColors: [Color(0xFF0C232A), Color(0xFF425F66), Color(0xFF0D1013)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    playCount: 97,
+  ),
+  Track(
+    id: 'quantum-state',
+    title: 'Quantum State',
+    artist: 'Binary Pulse',
+    album: 'Particles',
+    format: 'FLAC',
+    bitDepth: 24,
+    sampleRateKhz: 88,
+    duration: Duration(minutes: 2, seconds: 58),
+    coverColors: [Color(0xFF0A0D10), Color(0xFF7D858D), Color(0xFF242B32)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    playCount: 83,
+  ),
+  Track(
+    id: 'liquid-horizon',
+    title: 'Liquid Horizon',
+    artist: 'Aura',
+    album: 'Surface Tension',
+    format: 'FLAC',
+    bitDepth: 16,
+    sampleRateKhz: 44,
+    duration: Duration(minutes: 3, seconds: 19),
+    coverColors: [Color(0xFF0E1820), Color(0xFFD9A16B), Color(0xFF2F4962)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+    playCount: 62,
+  ),
+  Track(
+    id: 'soft-gravity',
+    title: 'Soft Gravity',
+    artist: 'Mira Vale',
+    album: 'Low Orbit',
+    format: 'AAC',
+    bitDepth: 16,
+    sampleRateKhz: 44,
+    duration: Duration(minutes: 3, seconds: 33),
+    coverColors: [Color(0xFF182041), Color(0xFFA29BFE), Color(0xFF11131F)],
+    lyrics: demoLyrics,
+    streamUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
+    playCount: 41,
+  ),
+];
+
+final List<Album> demoAlbums = List<Album>.unmodifiable([
+  Album(
+    id: 'beyond-sound',
+    title: 'Beyond Sound',
+    artist: 'Aetheris Collection',
+    description: 'A curated reference album for high-fidelity playback checks.',
+    tracks: [demoTracks[0], demoTracks[1], demoTracks[3]],
+  ),
+  Album(
+    id: 'glass-cities',
+    title: 'Glass Cities',
+    artist: 'The Architect',
+    description: 'Wide stereo synthscapes built for late-night sessions.',
+    tracks: [demoTracks[2], demoTracks[4], demoTracks[5]],
+  ),
+]);
+
+const List<(String, List<Color>)> genres = [
+  ('Hi-Res', [AetherisColors.mutedSky, Color(0xFF303B55)]),
+  ('Pop', [Color(0xFF2D3342), Color(0xFF464253)]),
+  ('J-Pop', [Color(0xFF162A3E), Color(0xFF283B5A)]),
+  ('Indie', [Color(0xFF263342), Color(0xFF34322F)]),
+  ('Acoustic', [Color(0xFF161719), Color(0xFF54637A)]),
+  ('Lo-Fi', [Color(0xFF292B31), Color(0xFF424047)]),
+  ('Local', [Color(0xFF102339), Color(0xFF354354)]),
+  ('Trending', [Color(0xFF2E3848), Color(0xFF6F89A8)]),
+];
