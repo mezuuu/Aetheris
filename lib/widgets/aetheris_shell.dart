@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../pages/home_page.dart';
 import '../pages/library_page.dart';
@@ -27,6 +29,7 @@ class AetherisShell extends StatefulWidget {
 class _AetherisShellState extends State<AetherisShell> {
   bool _onboardingDone = false;
   bool _loginDone = false;
+  bool _didRequestMediaPermission = false;
 
   static const _pages = [
     HomePage(),
@@ -34,6 +37,31 @@ class _AetherisShellState extends State<AetherisShell> {
     LibraryPage(),
     SettingsPage(),
   ];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didRequestMediaPermission) return;
+    _didRequestMediaPermission = true;
+    _requestMediaPermissionAndRefresh();
+  }
+
+  Future<void> _requestMediaPermissionAndRefresh() async {
+    final controller = AetherisScope.of(context);
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      await controller.refreshLibrary();
+      return;
+    }
+    try {
+      final audioStatus = await Permission.audio.request();
+      if (!audioStatus.isGranted) {
+        await Permission.storage.request();
+      }
+    } catch (_) {
+      // Keep app usable even if permission plugin fails on non-Android targets.
+    }
+    await controller.refreshLibrary();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +75,14 @@ class _AetherisShellState extends State<AetherisShell> {
 
     if (widget.showLogin && !_loginDone) {
       return LoginPage(
-        onLogin: () => setState(() => _loginDone = true),
-        onSkip: () => setState(() => _loginDone = true),
+        onLogin: () {
+          setState(() => _loginDone = true);
+          _requestMediaPermissionAndRefresh();
+        },
+        onSkip: () {
+          setState(() => _loginDone = true);
+          _requestMediaPermissionAndRefresh();
+        },
       );
     }
 

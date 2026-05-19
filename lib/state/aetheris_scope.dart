@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../data/library_repository.dart';
+import '../services/audio_playback_engine.dart';
 import 'player_controller.dart';
 
 class AetherisScope extends InheritedNotifier<PlayerController> {
@@ -11,7 +13,18 @@ class AetherisScope extends InheritedNotifier<PlayerController> {
 
   static PlayerController of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AetherisScope>();
-    assert(scope != null, 'AetherisScope was not found above this context.');
-    return scope!.notifier!;
+    final controller = scope?.notifier;
+    if (controller != null) {
+      return controller;
+    }
+    return _FallbackController.instance;
   }
+}
+
+class _FallbackController {
+  static final PlayerController instance = PlayerController(
+    libraryRepository: const DemoLibraryRepository(),
+    audioEngine: JustAudioPlaybackEngine(),
+    autoPlay: false,
+  );
 }

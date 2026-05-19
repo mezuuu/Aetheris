@@ -1,5 +1,4 @@
 import 'package:isar/isar.dart';
-import 'track.dart';
 
 part 'queue.g.dart';
 
@@ -20,6 +19,7 @@ class QueueItem {
   late String trackId;
 
   /// Type of queue (user, playlist, recommendation)
+  @enumerated
   late QueueType queueType;
 
   /// Order in the queue

@@ -63,9 +63,10 @@ class _LyricsPageState extends State<LyricsPage> {
   Widget build(BuildContext context) {
     final controller = AetherisScope.of(context);
     final track = controller.currentTrack;
+    final lyricsList = track.lyrics.isNotEmpty ? track.lyrics : ['(No lyrics available)'];
 
     // Determine active lyric index based on playback progress
-    final totalLines = _lyrics.length;
+    final totalLines = lyricsList.length;
     final activeIndex = (controller.progress * totalLines).floor().clamp(0, totalLines - 1);
 
     return Scaffold(
@@ -135,7 +136,7 @@ class _LyricsPageState extends State<LyricsPage> {
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                  itemCount: _lyrics.length,
+                  itemCount: lyricsList.length,
                   itemBuilder: (context, i) {
                     final isActive = i == activeIndex;
                     return Padding(
@@ -154,10 +155,10 @@ class _LyricsPageState extends State<LyricsPage> {
                               fontWeight: FontWeight.w800,
                               height: 1.2,
                             ),
-                            child: Text(_lyrics[i]),
+                            child: Text(lyricsList[i]),
                           ),
                           // Translation below (Spotify style)
-                          if (_translateEnabled) ...[
+                          if (_translateEnabled && track.lyrics.isEmpty && i < _translations.length) ...[
                             const SizedBox(height: 4),
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 300),

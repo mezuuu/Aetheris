@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../models/track.dart';
 
 /// Metadata service for fetching track information
 /// Supports: Spotify metadata, album art, lyrics, artist info

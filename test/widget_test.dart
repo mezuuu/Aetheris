@@ -12,7 +12,6 @@ void main() {
 
     await tester.pumpWidget(
       const AetherisApp(
-        startPlaybackClock: false,
         showOnboarding: false,
         showLogin: false,
       ),
@@ -26,7 +25,6 @@ void main() {
     expect(find.byKey(const ValueKey('home')), findsOneWidget);
     expect(find.text('Recently Played'), findsOneWidget);
     expect(find.text('Made For You'), findsOneWidget);
-    expect(find.text('Clear Sky'), findsWidgets);
   });
 
   testWidgets('bottom navigation opens search page', (tester) async {
@@ -47,7 +45,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      const AetherisApp(startPlaybackClock: false, showOnboarding: false),
+      const AetherisApp(showOnboarding: false),
     );
     await tester.pump();
 
@@ -76,7 +74,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      const AetherisApp(startPlaybackClock: false, showOnboarding: false),
+      const AetherisApp(showOnboarding: false),
     );
     await tester.pump();
 

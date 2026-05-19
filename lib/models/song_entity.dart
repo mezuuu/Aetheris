@@ -1,6 +1,6 @@
 import 'package:isar/isar.dart';
 
-part 'song.g.dart';
+part 'song_entity.g.dart';
 
 @collection
 class SongEntity {

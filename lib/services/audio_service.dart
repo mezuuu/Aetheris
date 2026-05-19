@@ -81,10 +81,7 @@ class AudioService {
         initialPosition: initialPosition,
       );
 
-      // Fetch duration if available
-      if (track.duration != null) {
-        _duration = track.duration!;
-      }
+      _duration = track.duration;
 
       if (autoPlay) {
         await play();

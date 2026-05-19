@@ -26,8 +26,9 @@ dependencies:
   # Audio & Playback
   http: ^1.6.0
   just_audio: ^0.10.5
-  media_kit: ^1.8.0
-  media_kit_video: ^1.8.0
+  media_kit: ^1.1.0
+  media_kit_video: ^1.1.0
+  
   
   # State Management
   flutter_riverpod: ^2.4.0
@@ -35,13 +36,14 @@ dependencies:
   
   # Database
   isar: ^3.1.0
-  isar_flutter_libs: ^3.1.0
   
   # Platform & System
   path_provider: ^2.1.0
   package_info_plus: ^4.0.0
+  shared_preferences: ^2.2.3
   connectivity_plus: ^5.0.0
   device_info_plus: ^9.0.0
+  permission_handler: ^11.3.1
   
   # API & Networking
   dio: ^5.4.0
@@ -63,6 +65,7 @@ dev_dependencies:
   build_runner: ^2.4.0
   isar_generator: ^3.1.0
   riverpod_generator: ^2.3.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,3 +103,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/branding/icon_aetheris.png"

@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:http/http.dart' as http;
 
 import '../models/album.dart';
 import '../models/track.dart';
+import '../theme/aetheris_colors.dart';
 import 'demo_library.dart';
+import 'local_music_scanner.dart';
 
 class LibrarySnapshot {
   const LibrarySnapshot({required this.tracks, required this.albums});
@@ -44,6 +47,112 @@ class DemoLibraryRepository implements LibraryRepository {
   @override
   List<Track> searchTracks(String query) {
     return _searchTracks(tracks, query);
+  }
+}
+
+class LocalMusicLibraryRepository implements LibraryRepository {
+  LocalMusicLibraryRepository({
+    String? musicFolderPath,
+    this.fallback = const DemoLibraryRepository(),
+  }) : _musicFolderPath = musicFolderPath ?? 'Music' {
+    _snapshot = _scanLocalMusic();
+  }
+
+  final String _musicFolderPath;
+  final LibraryRepository fallback;
+  late LibrarySnapshot _snapshot;
+
+  @override
+  List<Track> get tracks =>
+      _snapshot.tracks.isEmpty ? fallback.tracks : _snapshot.tracks;
+
+  @override
+  List<Album> get albums =>
+      _snapshot.albums.isEmpty ? fallback.albums : _snapshot.albums;
+
+  @override
+  Future<LibrarySnapshot> refresh() async {
+    _snapshot = _scanLocalMusic();
+    return LibrarySnapshot(tracks: tracks, albums: albums);
+  }
+
+  @override
+  Track? findTrackById(String id) => _findTrackById(tracks, id);
+
+  @override
+  List<Track> searchTracks(String query) => _searchTracks(tracks, query);
+
+  LibrarySnapshot _scanLocalMusic() {
+    final files = scanLocalMusicFiles(_musicFolderPath);
+
+    if (files.isEmpty) {
+      return const LibrarySnapshot(tracks: <Track>[], albums: <Album>[]);
+    }
+
+    final parsedTracks = <Track>[];
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      final fileName = _basenameWithoutExtension(file.path);
+      final dash = fileName.indexOf(' - ');
+      final title = dash > 0 ? fileName.substring(0, dash).trim() : fileName;
+      final artist =
+          dash > 0 ? fileName.substring(dash + 3).trim() : 'Local Artist';
+      final format = _extensionOf(file.path).toUpperCase();
+      
+      final presets = const [
+        [Color(0xFF0F273F), Color(0xFF8C5B7D), Color(0xFF101422)],
+        [Color(0xFF29112B), Color(0xFF0AB3B5), Color(0xFF101018)],
+        [Color(0xFF0C232A), Color(0xFF425F66), Color(0xFF0D1013)],
+        [Color(0xFF0A0D10), Color(0xFF7D858D), Color(0xFF242B32)],
+        [Color(0xFF0E1820), Color(0xFFD9A16B), Color(0xFF2F4962)],
+        [Color(0xFF182041), Color(0xFFA29BFE), Color(0xFF11131F)],
+        [Color(0xFF2E0916), Color(0xFFE24E60), Color(0xFF14070B)],
+        [Color(0xFF092E1A), Color(0xFF4EE28E), Color(0xFF0A140B)],
+      ];
+      final trackCoverColors = presets[file.path.hashCode.abs() % presets.length];
+
+      parsedTracks.add(
+        Track(
+          id: 'local_${i}_${file.path.hashCode}',
+          title: title,
+          artist: artist,
+          album: 'Local Music',
+          lyrics: const [],
+          format: format,
+          bitDepth: format == 'FLAC' || format == 'WAV' ? 24 : 16,
+          sampleRateKhz: 44,
+          duration: const Duration(minutes: 3),
+          coverColors: trackCoverColors,
+          streamUrl: file.uri,
+        ),
+      );
+    }
+
+    final tracks = List<Track>.unmodifiable(parsedTracks);
+    final albums = List<Album>.unmodifiable([
+      Album(
+        id: 'local_music',
+        title: 'Local Music',
+        artist: 'Device Library',
+        description: 'Tracks loaded from local Music folder.',
+        tracks: tracks,
+      ),
+    ]);
+    return LibrarySnapshot(tracks: tracks, albums: albums);
+  }
+
+  static String _extensionOf(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot < 0 || dot == path.length - 1) return '';
+    return path.substring(dot + 1).toLowerCase();
+  }
+
+  static String _basenameWithoutExtension(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    final slash = normalized.lastIndexOf('/');
+    final name = slash < 0 ? normalized : normalized.substring(slash + 1);
+    final dot = name.lastIndexOf('.');
+    return dot < 0 ? name : name.substring(0, dot);
   }
 }
 

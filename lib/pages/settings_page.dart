@@ -1,30 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/app_settings.dart';
 import '../theme/aetheris_colors.dart';
 import 'eq_page.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  bool _wifiOnly = true;
-  bool _exclusiveMode = false;
-  bool _autoPlay = true;
-  bool _automix = true;
-  bool _showLyrics = true;
-  bool _normalizeVolume = true;
-  bool _crossfade = false;
-  bool _showNotification = true;
-  double _crossfadeDuration = 3;
-  String _audioQuality = 'High';
-  String _downloadFormat = 'MP3';
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingsProvider);
+    final notifier = ref.read(appSettingsProvider.notifier);
     return ListView(
       key: const ValueKey('settings'),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 176),
@@ -51,10 +38,10 @@ class _SettingsPageState extends State<SettingsPage> {
         _ToggleTile(
           title: 'Crossfade',
           subtitle: 'Allow seamless transitions between songs',
-          value: _crossfade,
-          onChanged: (v) => setState(() => _crossfade = v),
+          value: settings.crossfade,
+          onChanged: (v) => notifier.update(settings.copyWith(crossfade: v)),
         ),
-        if (_crossfade)
+        if (settings.crossfade)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -68,13 +55,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 Expanded(
                   child: Slider(
-                    value: _crossfadeDuration,
+                    value: settings.crossfadeDuration,
                     min: 0,
                     max: 12,
                     divisions: 12,
                     activeColor: AetherisColors.accentSoft,
                     inactiveColor: AetherisColors.surfaceElevated,
-                    onChanged: (v) => setState(() => _crossfadeDuration = v),
+                    onChanged:
+                        (v) => notifier.update(
+                          settings.copyWith(crossfadeDuration: v),
+                        ),
                   ),
                 ),
                 const Text(
@@ -90,26 +80,27 @@ class _SettingsPageState extends State<SettingsPage> {
         _ToggleTile(
           title: 'Automix',
           subtitle: 'Allow smooth transitions between songs in a playlist.',
-          value: _automix,
-          onChanged: (v) => setState(() => _automix = v),
+          value: settings.automix,
+          onChanged: (v) => notifier.update(settings.copyWith(automix: v)),
         ),
         _ToggleTile(
           title: 'Auto-Play',
           subtitle:
               'Enjoy non-stop listening. When your audio ends, we\'ll play you something similar.',
-          value: _autoPlay,
-          onChanged: (v) => setState(() => _autoPlay = v),
+          value: settings.autoPlay,
+          onChanged: (v) => notifier.update(settings.copyWith(autoPlay: v)),
         ),
         _ToggleTile(
           title: 'Normalize Volume',
           subtitle: 'Set the same volume level for all songs',
-          value: _normalizeVolume,
-          onChanged: (v) => setState(() => _normalizeVolume = v),
+          value: settings.normalizeVolume,
+          onChanged:
+              (v) => notifier.update(settings.copyWith(normalizeVolume: v)),
         ),
         _ToggleTile(
           title: 'Show Lyrics',
-          value: _showLyrics,
-          onChanged: (v) => setState(() => _showLyrics = v),
+          value: settings.showLyrics,
+          onChanged: (v) => notifier.update(settings.copyWith(showLyrics: v)),
         ),
         _NavTile(
           title: 'Equalizer',
@@ -142,7 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               DropdownButton<String>(
-                value: _audioQuality,
+                value: settings.audioQuality,
                 dropdownColor: AetherisColors.surfaceRaised,
                 iconEnabledColor: AetherisColors.accentSoft,
                 underline: const SizedBox(),
@@ -159,7 +150,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   DropdownMenuItem(value: 'Lossless', child: Text('Lossless')),
                 ],
-                onChanged: (v) => setState(() => _audioQuality = v!),
+                onChanged:
+                    (v) => notifier.update(settings.copyWith(audioQuality: v!)),
               ),
             ],
           ),
@@ -167,8 +159,9 @@ class _SettingsPageState extends State<SettingsPage> {
         _ToggleTile(
           title: 'Exclusive Mode',
           subtitle: 'Direct hardware access for bit-perfect audio',
-          value: _exclusiveMode,
-          onChanged: (v) => setState(() => _exclusiveMode = v),
+          value: settings.exclusiveMode,
+          onChanged:
+              (v) => notifier.update(settings.copyWith(exclusiveMode: v)),
         ),
         const SizedBox(height: 24),
 
@@ -176,12 +169,14 @@ class _SettingsPageState extends State<SettingsPage> {
         _SectionHeader('Storage'),
         _ToggleTile(
           title: 'Download over Wi-Fi only',
-          value: _wifiOnly,
-          onChanged: (v) => setState(() => _wifiOnly = v),
+          value: settings.wifiOnly,
+          onChanged: (v) => notifier.update(settings.copyWith(wifiOnly: v)),
         ),
         _DownloadFormatTile(
-          value: _downloadFormat,
-          onChanged: (value) => setState(() => _downloadFormat = value),
+          value: settings.downloadFormat,
+          onChanged:
+              (value) =>
+                  notifier.update(settings.copyWith(downloadFormat: value)),
         ),
         const _InfoTile(
           title: 'Spotify links',
@@ -200,8 +195,9 @@ class _SettingsPageState extends State<SettingsPage> {
         _SectionHeader('Notifications'),
         _ToggleTile(
           title: 'Show Playback Notification',
-          value: _showNotification,
-          onChanged: (v) => setState(() => _showNotification = v),
+          value: settings.showNotification,
+          onChanged:
+              (v) => notifier.update(settings.copyWith(showNotification: v)),
         ),
         const SizedBox(height: 24),
 

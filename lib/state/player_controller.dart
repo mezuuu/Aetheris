@@ -13,7 +13,7 @@ class PlayerController extends ChangeNotifier {
     AudioPlaybackEngine? audioEngine,
     bool startPlaybackClock = true,
     bool autoPlay = true,
-    Duration initialPosition = const Duration(minutes: 1, seconds: 24),
+    Duration initialPosition = Duration.zero,
   }) : _libraryRepository = libraryRepository,
        _audioEngine =
            startPlaybackClock
@@ -36,8 +36,6 @@ class PlayerController extends ChangeNotifier {
     if (_currentTrack.hasStream) {
       if (autoPlay) {
         unawaited(_loadAndPlayCurrent(restart: true));
-      } else {
-        unawaited(_prepareCurrentTrack());
       }
     }
   }
@@ -396,13 +394,6 @@ class PlayerController extends ChangeNotifier {
       )
       ..add(
         audioEngine.playingStream.listen((isPlaying) {
-          if (isPlaying && !_isPlaying) {
-            unawaited(_pauseAudio());
-            return;
-          }
-          if (!isPlaying && _isPlaying && _isBuffering) {
-            return;
-          }
           if (_isPlaying == isPlaying) {
             return;
           }

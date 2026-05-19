@@ -53,8 +53,15 @@ class JustAudioPlaybackEngine implements AudioPlaybackEngine {
     if (streamUri == null) {
       throw StateError('Track ${track.id} does not have a valid stream URL.');
     }
+    AudioSource source;
+    if (streamUri.scheme == 'file') {
+      source = AudioSource.file(streamUri.toFilePath(), tag: track.id);
+    } else {
+      source = AudioSource.uri(streamUri, tag: track.id);
+    }
+    
     await _player.setAudioSource(
-      AudioSource.uri(streamUri, tag: track.id),
+      source,
       initialPosition: initialPosition,
     );
   }
