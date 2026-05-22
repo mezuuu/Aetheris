@@ -432,6 +432,13 @@ class FirestoreSyncService extends ChangeNotifier {
     await doc.collection('followedArtists').doc(artistId).delete();
   }
 
+  Future<bool> isFollowingArtist(String artistId) async {
+    final doc = _userDoc;
+    if (doc == null) return false;
+    final snap = await doc.collection('followedArtists').doc(artistId).get();
+    return snap.exists;
+  }
+
   Future<void> saveSong(String songId, Track track) async {
     final doc = _userDoc;
     if (doc == null) return;
@@ -444,6 +451,41 @@ class FirestoreSyncService extends ChangeNotifier {
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
+
+  Stream<List<Map<String, dynamic>>> watchSavedAlbums() {
+    final doc = _userDoc;
+    if (doc == null) return Stream.value([]);
+    return doc.collection('savedAlbums')
+        .orderBy('savedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) {
+              final data = d.data();
+              data['id'] = d.id;
+              return data;
+            }).toList(growable: false));
+  }
+
+  Stream<List<Map<String, dynamic>>> watchFollowedArtists() {
+    final doc = _userDoc;
+    if (doc == null) return Stream.value([]);
+    return doc.collection('followedArtists')
+        .orderBy('followedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) {
+              final data = d.data();
+              data['id'] = d.id;
+              return data;
+            }).toList(growable: false));
+  }
+
+  Stream<List<Track>> watchSavedSongs() {
+    final doc = _userDoc;
+    if (doc == null) return Stream.value([]);
+    return doc.collection('savedSongs')
+        .orderBy('savedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => Track.fromJson(d.data())).toList(growable: false));
+  }
 
   /// Cancel all active Firestore listeners.
   void cancelSubscriptions() {

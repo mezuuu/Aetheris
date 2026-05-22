@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 
 import '../theme/aetheris_colors.dart';
 
+import '../models/track.dart';
 import '../pages/album_detail_page.dart';
 import '../state/aetheris_scope.dart';
 import '../widgets/album_art.dart';
@@ -95,57 +96,155 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             children: [
               if (_selectedFilter == 3) ...[
                 // Songs
-                for (final track in controller.library) ...[
-                  TrackTile(track: track),
-                  Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 72),
-                ],
+                StreamBuilder<List<Track>>(
+                  stream: ref.watch(firestoreSyncProvider).watchSavedSongs(),
+                  builder: (context, snapshot) {
+                    final songs = snapshot.data ?? [];
+                    final displaySongs = songs.isEmpty ? controller.library : songs;
+                    return Column(
+                      children: displaySongs.expand((track) => [
+                        TrackTile(track: track),
+                        Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 72),
+                      ]).toList(),
+                    );
+                  },
+                ),
               ] else if (_selectedFilter == 1) ...[
                 // Albums
-                for (final album in controller.albums) ...[
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    leading: album.id == 'liked_songs'
-                        ? Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: ref.watch(firestoreSyncProvider).watchSavedAlbums(),
+                  builder: (context, snapshot) {
+                    final albums = snapshot.data ?? [];
+                    if (albums.isNotEmpty) {
+                      return Column(
+                        children: albums.expand((album) => [
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            leading: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: AetherisColors.surfaceRaised,
+                                borderRadius: BorderRadius.circular(8),
+                                image: album['imageUrl'] != null
+                                    ? DecorationImage(image: NetworkImage(album['imageUrl'] as String), fit: BoxFit.cover)
+                                    : null,
+                              ),
+                              child: album['imageUrl'] == null
+                                  ? const Icon(Icons.album_rounded, color: AetherisColors.textPrimary, size: 28)
+                                  : null,
+                            ),
+                            title: Text(
+                              album['title'] as String? ?? 'Unknown Album',
+                              style: const TextStyle(
+                                color: AetherisColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 28),
-                          )
-                        : AlbumArt(
-                            track: album.tracks.first,
-                            size: 56,
-                            radius: 8,
-                            showBadge: false,
+                            subtitle: Text(
+                              '${album['artist'] ?? 'Unknown'}',
+                              style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary),
+                            onTap: () {},
                           ),
-                    title: Text(
-                      album.title,
-                      style: const TextStyle(
-                        color: AetherisColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${album.artist} · ${album.tracks.length} songs',
-                      style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => AlbumDetailPage(album: album)),
-                    ),
-                  ),
-                  Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 88),
-                ],
+                          Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 88),
+                        ]).toList(),
+                      );
+                    }
+
+                    // Fallback to local albums
+                    return Column(
+                      children: controller.albums.expand((album) => [
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          leading: album.id == 'liked_songs'
+                              ? Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 28),
+                                )
+                              : AlbumArt(
+                                  track: album.tracks.first,
+                                  size: 56,
+                                  radius: 8,
+                                  showBadge: false,
+                                ),
+                          title: Text(
+                            album.title,
+                            style: const TextStyle(
+                              color: AetherisColors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${album.artist} · ${album.tracks.length} songs',
+                            style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => AlbumDetailPage(album: album)),
+                          ),
+                        ),
+                        Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 88),
+                      ]).toList(),
+                    );
+                  },
+                ),
               ] else if (_selectedFilter == 2) ...[
                 // Artists
-                ..._buildArtists(controller.library),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: ref.watch(firestoreSyncProvider).watchFollowedArtists(),
+                  builder: (context, snapshot) {
+                    final artists = snapshot.data ?? [];
+                    if (artists.isNotEmpty) {
+                      return Column(
+                        children: artists.expand((artist) => [
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            leading: Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AetherisColors.surfaceRaised,
+                                image: artist['imageUrl'] != null
+                                    ? DecorationImage(image: NetworkImage(artist['imageUrl'] as String), fit: BoxFit.cover)
+                                    : null,
+                              ),
+                              child: artist['imageUrl'] == null
+                                  ? const Icon(Icons.person_rounded, color: AetherisColors.textPrimary, size: 24)
+                                  : null,
+                            ),
+                            title: Text(
+                              artist['name'] as String? ?? 'Unknown Artist',
+                              style: const TextStyle(color: AetherisColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: const Text('Artist', style: TextStyle(color: AetherisColors.textSecondary, fontSize: 13)),
+                            trailing: const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary),
+                            onTap: () {},
+                          ),
+                          Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 84),
+                        ]).toList(),
+                      );
+                    }
+
+                    // Fallback to local artists
+                    return Column(
+                      children: _buildArtists(controller.library),
+                    );
+                  },
+                ),
               ] else ...[
                 // Playlists
                 StreamBuilder<List<Map<String, dynamic>>>(
