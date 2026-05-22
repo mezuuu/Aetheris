@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/track.dart';
+import '../providers/auth_provider.dart';
 import '../services/spotify_service.dart';
 import '../services/youtube_music_service.dart';
 
@@ -220,8 +221,6 @@ class SearchResult {
 // ---------------------------------------------------------------------------
 // Service providers (needed by search)
 // ---------------------------------------------------------------------------
-
-import '../providers/auth_provider.dart';
 
 /// Spotify service singleton provider.
 final spotifyServiceProvider = Provider<SpotifyService>((ref) {
