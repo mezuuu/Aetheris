@@ -221,28 +221,16 @@ class SearchResult {
 // Service providers (needed by search)
 // ---------------------------------------------------------------------------
 
+import '../providers/auth_provider.dart';
+
 /// Spotify service singleton provider.
-///
-/// Override this in your [ProviderScope] with real credentials:
-/// ```dart
-/// ProviderScope(
-///   overrides: [
-///     spotifyServiceProvider.overrideWithValue(
-///       SpotifyService(clientId: '…', clientSecret: '…'),
-///     ),
-///   ],
-///   child: MyApp(),
-/// )
-/// ```
 final spotifyServiceProvider = Provider<SpotifyService>((ref) {
+  final authService = ref.watch(spotifyAuthProvider);
   final service = SpotifyService(
+    authService: authService,
     clientId: const String.fromEnvironment(
       'SPOTIFY_CLIENT_ID',
       defaultValue: 'bc0941ea725c4a84bf23eee059abf714',
-    ),
-    clientSecret: const String.fromEnvironment(
-      'SPOTIFY_CLIENT_SECRET',
-      defaultValue: '7c2c4d40c21a416bb7110f9f454602f0',
     ),
   );
   ref.onDispose(service.dispose);
