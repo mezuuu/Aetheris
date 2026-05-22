@@ -1056,4 +1056,61 @@ class SpotifyService {
 
     return null;
   }
+
+  // ---------------------------------------------------------------------------
+  // Recommendations & Discovery
+  // ---------------------------------------------------------------------------
+
+  /// Fetch new album releases.
+  Future<List<SpotifyAlbum>> getNewReleases({int limit = 20}) async {
+    try {
+      final data = await _get(
+        '/browse/new-releases',
+        queryParameters: {'limit': limit.clamp(1, 50)},
+      );
+      final items = (data['albums'] as Map<String, dynamic>?)?['items'] as List? ?? [];
+      return items
+          .cast<Map<String, dynamic>>()
+          .map((json) => SpotifyAlbum.fromJson(json))
+          .toList(growable: false);
+    } catch (e) {
+      if (kDebugMode) print('SpotifyService: getNewReleases failed: $e');
+      return const [];
+    }
+  }
+
+  /// Fetch personalized recommendations based on seed genres, artists, or tracks.
+  Future<List<SpotifyTrack>> getRecommendations({
+    List<String> seedArtists = const [],
+    List<String> seedGenres = const [],
+    List<String> seedTracks = const [],
+    int limit = 20,
+  }) async {
+    // Spotify requires at least one seed, and max 5 seeds combined.
+    final totalSeeds = seedArtists.length + seedGenres.length + seedTracks.length;
+    if (totalSeeds == 0 || totalSeeds > 5) {
+      if (kDebugMode) print('SpotifyService: getRecommendations requires 1-5 total seeds.');
+      return const [];
+    }
+
+    final params = <String, dynamic>{
+      'limit': limit.clamp(1, 100),
+      if (seedArtists.isNotEmpty) 'seed_artists': seedArtists.take(5).join(','),
+      if (seedGenres.isNotEmpty) 'seed_genres': seedGenres.take(5).join(','),
+      if (seedTracks.isNotEmpty) 'seed_tracks': seedTracks.take(5).join(','),
+      'market': 'from_token', // Ensure playable tracks for the user
+    };
+
+    try {
+      final data = await _get('/recommendations', queryParameters: params);
+      final items = data['tracks'] as List? ?? [];
+      return items
+          .cast<Map<String, dynamic>>()
+          .map((json) => SpotifyTrack.fromJson(json))
+          .toList(growable: false);
+    } catch (e) {
+      if (kDebugMode) print('SpotifyService: getRecommendations failed: $e');
+      return const [];
+    }
+  }
 }

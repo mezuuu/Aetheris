@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/auth_provider.dart';
+import '../providers/search_provider.dart';
+import '../services/spotify_service.dart';
 
 import '../theme/aetheris_colors.dart';
 
@@ -9,8 +14,86 @@ import '../widgets/album_card.dart';
 import '../widgets/section_label.dart';
 import '../widgets/track_tile.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
+
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  List<Track>? _madeForYou;
+  List<Track>? _topPicks;
+  bool _isFallback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRecommendations();
+  }
+
+  Future<void> _fetchRecommendations() async {
+    final isLoggedIn = ref.read(isSignedInProvider);
+    final spotify = ref.read(spotifyServiceProvider);
+    
+    if (isLoggedIn) {
+      // Get recently played tracks for personalized seeds
+      final recentTracks = await ref.read(firestoreSyncProvider).watchRecentlyPlayed(limit: 5).first;
+      final seedTracks = recentTracks
+          .where((t) => t.id.startsWith('spotify_'))
+          .map((t) => t.id.replaceAll('spotify_', ''))
+          .take(5)
+          .toList();
+
+      List<SpotifyTrack> recs = [];
+      List<SpotifyTrack> top = [];
+
+      if (seedTracks.isNotEmpty) {
+        recs = await spotify.getRecommendations(seedTracks: seedTracks);
+        // We can get another set for top picks by shuffling seeds or using genres
+        top = await spotify.getRecommendations(seedGenres: ['pop', 'electronic'], limit: 10);
+      } else {
+        // Fallback for logged in user but no history
+        recs = await spotify.getRecommendations(seedGenres: ['pop', 'acoustic', 'chill']);
+        top = await spotify.getRecommendations(seedGenres: ['rock', 'electronic']);
+      }
+      
+      if (mounted) {
+        setState(() {
+          _madeForYou = recs.map(_trackFromSpotify).toList();
+          _topPicks = top.map(_trackFromSpotify).toList();
+          _isFallback = false;
+        });
+      }
+    } else {
+      final fallbackMadeForYou = await spotify.searchTracks('trending acoustic', limit: 10);
+      final fallbackTop = await spotify.searchTracks('top hits', limit: 10);
+      
+      if (mounted) {
+        setState(() {
+          _madeForYou = fallbackMadeForYou.map(_trackFromSpotify).toList();
+          _topPicks = fallbackTop.map(_trackFromSpotify).toList();
+          _isFallback = true;
+        });
+      }
+    }
+  }
+
+  Track _trackFromSpotify(SpotifyTrack track) {
+    return Track(
+      id: 'spotify_${track.id}',
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      format: 'AAC',
+      bitDepth: 16,
+      sampleRateKhz: 44,
+      duration: track.duration,
+      coverColors: const [Color(0xFF0F273F), Color(0xFF8C5B7D), Color(0xFF101422)],
+      lyrics: const [],
+      artworkUrl: track.albumArtUrl,
+    );
+  }
 
   String _greeting() {
     final hour = DateTime.now().hour;
@@ -24,6 +107,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = AetherisScope.of(context);
+    final recentStream = ref.watch(firestoreSyncProvider).watchRecentlyPlayed(limit: 10);
 
     return ListView(
       key: const ValueKey('home'),
@@ -51,19 +135,27 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 22),
 
         // ── Quick Access Grid (2 per row, 4 total) ───────────────────────
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 4,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 3.5,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemBuilder: (context, index) {
-            final track = controller.library[index % controller.library.length];
-            return _QuickAccessCell(track: track);
+        StreamBuilder<List<Track>>(
+          stream: recentStream,
+          builder: (context, snapshot) {
+            final recent = snapshot.data ?? [];
+            final displayTracks = recent.isEmpty ? controller.library.take(4).toList() : recent.take(4).toList();
+            if (displayTracks.isEmpty) return const SizedBox.shrink();
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayTracks.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 3.5,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemBuilder: (context, index) {
+                return _QuickAccessCell(track: displayTracks[index]);
+              },
+            );
           },
         ),
         const SizedBox(height: 32),
@@ -71,44 +163,63 @@ class HomePage extends StatelessWidget {
         // ── Recently Played ──────────────────────────────────────────────
         const SectionLabel('Recently Played'),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 165,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: controller.library.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (context, i) {
-              final track = controller.library[i];
-              return _RecentCard(track: track);
-            },
-          ),
+        StreamBuilder<List<Track>>(
+          stream: recentStream,
+          builder: (context, snapshot) {
+            final recent = snapshot.data ?? [];
+            final displayTracks = recent.isEmpty ? controller.library.take(10).toList() : recent;
+            if (displayTracks.isEmpty) {
+              return const SizedBox(
+                height: 165,
+                child: Center(child: Text('No recently played tracks', style: TextStyle(color: AetherisColors.textSecondary))),
+              );
+            }
+            return SizedBox(
+              height: 165,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: displayTracks.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (context, i) {
+                  return _RecentCard(track: displayTracks[i]);
+                },
+              ),
+            );
+          },
         ),
         const SizedBox(height: 32),
 
-        // ── Made For You ─────────────────────────────────────────────────
-        const SectionLabel('Made For You'),
+        // ── Made For You / Curated Discoveries ───────────────────────────
+        SectionLabel(_isFallback ? 'Curated Discoveries' : 'Made For You'),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 190,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: controller.library.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (context, i) {
-              final track = controller.library[i];
-              return AlbumCard(track: track);
-            },
+        if (_madeForYou == null)
+          const SizedBox(height: 190, child: Center(child: CircularProgressIndicator(color: AetherisColors.accentSoft)))
+        else if (_madeForYou!.isEmpty)
+          const SizedBox(height: 190, child: Center(child: Text('Nothing to recommend right now.', style: TextStyle(color: AetherisColors.textSecondary))))
+        else
+          SizedBox(
+            height: 190,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _madeForYou!.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (context, i) {
+                return AlbumCard(track: _madeForYou![i]);
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 32),
 
         // ── Top Picks ────────────────────────────────────────────────────
         const SectionLabel('Top Picks'),
         const SizedBox(height: 12),
-        for (final track in controller.library.take(5)) ...[
-          TrackTile(track: track),
-          Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 72),
-        ],
+        if (_topPicks == null)
+          const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator(color: AetherisColors.accentSoft)))
+        else
+          for (final track in _topPicks!.take(5)) ...[
+            TrackTile(track: track),
+            Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 72),
+          ],
         const SizedBox(height: 16),
       ],
     );
