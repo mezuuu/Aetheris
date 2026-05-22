@@ -30,12 +30,18 @@ class SpotifyConfig {
   static const List<String> scopes = [
     'user-read-private',
     'user-read-email',
-    'user-library-read',
-    'user-read-playback-state',
-    'user-modify-playback-state',
+    'user-top-read',
     'user-read-recently-played',
+    'user-library-read',
     'playlist-read-private',
     'playlist-read-collaborative',
+    'playlist-modify-public',
+    'playlist-modify-private',
+    'user-follow-read',
+    'user-follow-modify',
+    'user-read-playback-state',
+    'user-modify-playback-state',
+    'user-read-currently-playing',
     'streaming',
   ];
 
