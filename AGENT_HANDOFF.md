@@ -290,7 +290,11 @@ flutter test: 17 tests passed
 - Fixed a silent timeout/failure during FFmpeg transcoding. Native C libraries like FFmpeg cannot write directly to public folders (like `/storage/emulated/0/Download`) on Android 11+ due to Scoped Storage restrictions. Modified the download engine to perform all downloading and transcoding inside the app's private `getTemporaryDirectory()`, and then gracefully copy the final file to the public directory using Dart's `File.copy()` which handles Scoped Storage permissions correctly.
 - Added an `onCompleted` callback to the background native download process to trigger an in-app `SnackBar` notifying the user when a download either finishes successfully or fails, replacing the previously missing feedback loop.
 - Fixed release build failure caused by Gradle `lintVitalAnalyzeRelease` file-locking issues on Windows by disabling lint checks (`checkReleaseBuilds = false`, `abortOnError = false`) in `android/app/build.gradle.kts`.
-
+- Connected Offline Mode fallback to Settings login.
+- Replaced dummy music in HomePage with real Spotify recommendations based on user listening history.
+- Replaced Library Albums, Artists, and Songs tabs with FirestoreSyncService streams for true cloud synchronization.
+- Optimized ArtistProfilePage loading by removing sequential getAlbumTracks calls, drastically improving load speed.
+- Refactored DownloadConverter to use `FFmpegKit.executeWithArguments` to fix FFmpeg crashes when file paths contain spaces or unescaped characters on Android.
 ## Instructions For Future Agents
 
 1. Read this file before making changes.
