@@ -14,37 +14,37 @@ class DownloadConverter {
     required String targetBitrate,
   }) async {
     final format = targetFormat.toUpperCase();
-    String ffmpegCommand = '-y -i "$inputPath" -vn ';
+    final List<String> args = ['-y', '-i', inputPath, '-vn'];
 
     // Map the requested format/bitrate to FFmpeg arguments
     if (format == 'MP3') {
       final bitrateK = targetBitrate.replaceAll(' kbps', 'k');
-      ffmpegCommand += '-c:a libmp3lame -b:a $bitrateK ';
+      args.addAll(['-c:a', 'libmp3lame', '-b:a', bitrateK]);
     } else if (format == 'FLAC') {
-      ffmpegCommand += '-c:a flac -compression_level 5 ';
+      args.addAll(['-c:a', 'flac', '-compression_level', '5']);
     } else if (format == 'WAV') {
-      ffmpegCommand += '-c:a pcm_s16le ';
+      args.addAll(['-c:a', 'pcm_s16le']);
     } else if (format == 'AAC') {
       final bitrateK = targetBitrate.replaceAll(' kbps', 'k');
-      ffmpegCommand += '-c:a aac -b:a $bitrateK ';
+      args.addAll(['-c:a', 'aac', '-b:a', bitrateK]);
     } else if (format == 'OPUS') {
       final bitrateK = targetBitrate.replaceAll(' kbps', 'k');
-      ffmpegCommand += '-c:a libopus -b:a $bitrateK ';
+      args.addAll(['-c:a', 'libopus', '-b:a', bitrateK]);
     } else if (format == 'OGG') {
       final bitrateK = targetBitrate.replaceAll(' kbps', 'k');
-      ffmpegCommand += '-c:a libvorbis -b:a $bitrateK ';
+      args.addAll(['-c:a', 'libvorbis', '-b:a', bitrateK]);
     } else {
       // Fallback
-      ffmpegCommand += '-c:a copy ';
+      args.addAll(['-c:a', 'copy']);
     }
 
-    ffmpegCommand += '"$outputPath"';
+    args.add(outputPath);
 
     if (kDebugMode) {
-      print('DownloadConverter: Running FFmpeg -> $ffmpegCommand');
+      print('DownloadConverter: Running FFmpeg -> ${args.join(' ')}');
     }
 
-    final session = await FFmpegKit.execute(ffmpegCommand);
+    final session = await FFmpegKit.executeWithArguments(args);
     final returnCode = await session.getReturnCode();
 
     if (ReturnCode.isSuccess(returnCode)) {
