@@ -1,161 +1,161 @@
 # Aetheris Audio Player
 
-Aetheris is an advanced, modern, and unified music player built with Flutter. It seamlessly integrates local high-fidelity audio playback with cloud-based metadata streaming, bridging the gap between premium local playback and extensive online catalog discovery.
+Aetheris adalah pemutar musik canggih, modern, dan terpadu yang dibangun menggunakan Flutter. Aplikasi ini mengintegrasikan pemutaran audio lokal beresolusi tinggi dengan streaming metadata berbasis cloud, menjembatani kesenjangan antara pemutaran audio lokal premium dengan penemuan katalog musik daring yang luas.
 
-Aetheris utilizes a complex fallback mechanism to guarantee uninterrupted music playback. It resolves official Spotify metadata and attempts to map it against local lossless files, self-hosted lossless backends, or YouTube Music stream extractions as a last resort.
-
----
-
-## Table of Contents
-1. [Core Technologies](#core-technologies)
-2. [Architecture & Design](#architecture--design)
-3. [System Diagrams](#system-diagrams)
-4. [Extensive Features Breakdown](#extensive-features-breakdown)
-5. [Detailed Configuration Guide](#detailed-configuration-guide)
-6. [Self-Hosted Lossless Backend](#self-hosted-lossless-backend)
-7. [Build & Deployment Instructions](#build--deployment-instructions)
-8. [Project Structure](#project-structure)
-9. [Disclaimer](#disclaimer)
+Aetheris menggunakan mekanisme fallback yang kompleks untuk menjamin pemutaran musik tanpa gangguan. Aplikasi ini memproses metadata resmi dari Spotify dan secara dinamis mencocokkannya dengan file lossless lokal, backend lossless mandiri, atau mengekstrak aliran suara dari YouTube Music sebagai upaya terakhir.
 
 ---
 
-## Core Technologies
+## Daftar Isi
+1. [Teknologi Inti](#teknologi-inti)
+2. [Arsitektur & Desain](#arsitektur--desain)
+3. [Diagram Sistem](#diagram-sistem)
+4. [Rincian Fitur Utama](#rincian-fitur-utama)
+5. [Panduan Konfigurasi Detail](#panduan-konfigurasi-detail)
+6. [Backend Lossless Mandiri](#backend-lossless-mandiri-self-hosted)
+7. [Panduan Build & Deployment](#panduan-build--deployment)
+8. [Struktur Proyek](#struktur-proyek)
+9. [Penafian](#penafian)
 
-The Aetheris stack is carefully selected to provide high performance, clean state management, and reliable background processing.
+---
+
+## Teknologi Inti
+
+Teknologi di balik Aetheris dipilih secara saksama untuk memberikan performa tinggi, manajemen state yang rapi, dan pemrosesan latar belakang yang andal.
 
 ### Frontend & UI
-* **Flutter & Dart**: The core framework for building the cross-platform user interface natively compiled for Android.
-* **Riverpod**: Utilized for robust, compile-safe, and scalable state management and dependency injection across the application.
+* **Flutter & Dart**: Framework utama untuk membangun antarmuka pengguna lintas platform yang dikompilasi secara native untuk Android.
+* **Riverpod**: Digunakan untuk manajemen state yang kuat, aman pada saat kompilasi, serta dependency injection di seluruh aplikasi.
 
-### Audio & Playback Engine
-* **Just Audio & Audio Service**: Handles low-level audio decoding, gapless playback, crossfading, and background audio execution.
-* **Android MediaSession**: Native integration for lock-screen controls, Bluetooth metadata propagation, and external hardware controls.
+### Audio & Mesin Pemutaran
+* **Just Audio & Audio Service**: Menangani decoding audio tingkat rendah, pemutaran tanpa jeda (gapless), crossfading, dan eksekusi audio di latar belakang.
+* **Android MediaSession**: Integrasi native untuk kontrol layar kunci, propagasi metadata Bluetooth, dan kontrol perangkat keras eksternal.
 
-### Data & Cloud Synchronization
-* **Firebase Authentication**: Secures user identities using Email/Password and Google Sign-In.
-* **Cloud Firestore**: Provides real-time, bi-directional synchronization for the user's music library, listening history, playlists, and settings.
-* **SharedPreferences**: Manages local, persistent settings such as offline-mode toggles and onboarding states.
+### Data & Sinkronisasi Cloud
+* **Firebase Authentication**: Mengamankan identitas pengguna menggunakan Email/Password dan Google Sign-In.
+* **Cloud Firestore**: Menyediakan sinkronisasi dua arah secara real-time untuk perpustakaan musik pengguna, riwayat pemutaran, daftar putar, dan pengaturan.
+* **SharedPreferences**: Mengelola pengaturan lokal yang persisten seperti tombol mode luring (offline) dan status orientasi awal (onboarding).
 
-### Content Resolution & Processing
-* **Spotify Web API**: Fetches rich metadata, artist profiles, album tracking, and recommendations via OAuth PKCE.
-* **YouTube Explode Dart**: Acts as the primary audio fallback engine, extracting raw audio streams natively without web scrapers.
-* **FFmpegKit**: A native C-compiled library embedded within the app for serverless, on-device audio transcoding and format packaging (FLAC, WAV, AAC, OPUS).
-
----
-
-## Architecture & Design
-
-Aetheris adheres to a Service-Oriented Architecture (SOA) integrated within a Clean Architecture boundary.
-
-### 1. Presentation Layer
-Located in `lib/pages` and `lib/widgets`. The UI strictly observes state from Riverpod providers (`ConsumerWidget` and `ConsumerStatefulWidget`). The UI is completely decoupled from business logic and does not contain raw API calls or database reads.
-
-### 2. Provider / State Layer
-Located in `lib/providers` and `lib/state`. Providers act as the glue between the UI and the underlying services. For example, `LibraryStateNotifier` aggregates data from local storage and Firestore to present a unified view of the user's saved tracks.
-
-### 3. Service Layer
-Located in `lib/services`. These singleton instances handle all heavy lifting:
-* `SpotifyService`: Interacts with Spotify endpoints.
-* `FirestoreSyncService`: Listens to Firestore snapshots and pushes local changes to the cloud.
-* `DownloadManagerService`: Manages download queues, HTTP range requests, and interacts with the conversion layer.
-* `PlayerController`: An orchestration layer that bridges `just_audio` state with `AetherisScope` to expose playback state to the application.
-
-### 4. Offline-First Synchronization
-Aetheris caches the library and recently played tracks locally. If the user launches the app without internet connectivity, the application enters Offline Mode. Once the device reconnects, the `FirestoreSyncService` triggers a background sync to resolve any discrepancies.
+### Resolusi Konten & Pemrosesan
+* **Spotify Web API**: Mengambil metadata yang kaya, profil artis, pelacakan album, dan rekomendasi melalui OAuth PKCE.
+* **YouTube Explode Dart**: Berfungsi sebagai mesin fallback audio utama, mengekstrak aliran audio mentah secara native tanpa menggunakan web scraper.
+* **FFmpegKit**: Pustaka kompilasi C-native yang disematkan di dalam aplikasi untuk melakukan transkoding audio dan pengemasan format (FLAC, WAV, AAC, OPUS) langsung di perangkat pengguna tanpa memerlukan server.
 
 ---
 
-## System Diagrams
+## Arsitektur & Desain
 
-### Audio Stream Resolution Workflow
-The following diagram illustrates how Aetheris resolves an audio track when a user presses "Play".
+Aetheris mematuhi prinsip Service-Oriented Architecture (SOA) yang terintegrasi di dalam batas Clean Architecture.
+
+### 1. Lapisan Presentasi
+Terletak di `lib/pages` dan `lib/widgets`. Antarmuka pengguna (UI) secara ketat mengamati state dari provider Riverpod (`ConsumerWidget` dan `ConsumerStatefulWidget`). UI sepenuhnya dipisahkan dari logika bisnis dan tidak mengandung panggilan API mentah atau pembacaan basis data secara langsung.
+
+### 2. Lapisan Provider / State
+Terletak di `lib/providers` dan `lib/state`. Provider bertindak sebagai perekat antara UI dan layanan yang mendasarinya. Sebagai contoh, `LibraryStateNotifier` mengumpulkan data dari penyimpanan lokal dan Firestore untuk menyajikan tampilan perpustakaan pengguna yang selaras.
+
+### 3. Lapisan Layanan (Service)
+Terletak di `lib/services`. Instans singleton ini menangani semua beban kerja utama:
+* `SpotifyService`: Berinteraksi dengan endpoint Spotify.
+* `FirestoreSyncService`: Mendengarkan perubahan snapshot Firestore dan mendorong perubahan lokal ke cloud.
+* `DownloadManagerService`: Mengelola antrean unduhan, permintaan rentang HTTP (HTTP range requests), dan berinteraksi dengan lapisan konversi.
+* `PlayerController`: Lapisan orkestrasi yang menjembatani state dari `just_audio` dengan `AetherisScope` untuk mengekspos status pemutaran ke aplikasi.
+
+### 4. Sinkronisasi Offline-First
+Aetheris menyimpan tembolok (cache) perpustakaan dan lagu yang baru saja diputar secara lokal. Jika pengguna membuka aplikasi tanpa koneksi internet, aplikasi akan masuk ke Mode Offline. Begitu perangkat kembali terhubung, `FirestoreSyncService` akan memicu sinkronisasi latar belakang untuk menyelesaikan segala perbedaan data.
+
+---
+
+## Diagram Sistem
+
+### Alur Resolusi Aliran Audio
+Diagram berikut mengilustrasikan bagaimana Aetheris memproses dan menemukan jalur audio saat pengguna menekan tombol "Play".
 
 ```mermaid
 flowchart TD
-    Start([User Plays Track]) --> CheckLocal{Is Local File Available?}
-    CheckLocal -- Yes --> PlayLocal[Play Local Lossless File]
-    CheckLocal -- No --> CheckBackend{Is Lossless Backend Configured?}
+    Start([Pengguna Memutar Lagu]) --> CheckLocal{Apakah File Lokal Tersedia?}
+    CheckLocal -- Ya --> PlayLocal[Putar File Lossless Lokal]
+    CheckLocal -- Tidak --> CheckBackend{Apakah Backend Lossless Dikonfigurasi?}
     
-    CheckBackend -- Yes --> BackendAPI[Query Backend API]
-    BackendAPI --> BackendMatch{Track Found?}
-    BackendMatch -- Yes --> PlayBackend[Play Remote Lossless Stream]
-    BackendMatch -- No --> FallbackResolution
+    CheckBackend -- Ya --> BackendAPI[Kueri API Backend]
+    BackendAPI --> BackendMatch{Lagu Ditemukan?}
+    BackendMatch -- Ya --> PlayBackend[Putar Aliran Lossless Jarak Jauh]
+    BackendMatch -- Tidak --> FallbackResolution
     
-    CheckBackend -- No --> FallbackResolution[Initialize YT Fallback Resolver]
+    CheckBackend -- Tidak --> FallbackResolution[Inisialisasi YT Fallback Resolver]
     
-    FallbackResolution --> SearchYT[Search YT using Exact Title & Artist]
-    SearchYT --> MatchRules{Apply Strict Match Rules}
+    FallbackResolution --> SearchYT[Cari di YT menggunakan Judul & Artis Tepat]
+    SearchYT --> MatchRules{Terapkan Aturan Pencocokan Ketat}
     
-    MatchRules -- "Match Found\n(Duration ±30s)" --> ExtractStream[Extract Raw Opus/M4A Stream]
-    MatchRules -- "No Match" --> Error[Show Playback Error]
+    MatchRules -- "Ditemukan\n(Durasi ±30d)" --> ExtractStream[Ekstrak Aliran Opus/M4A Mentah]
+    MatchRules -- "Tidak Ditemukan" --> Error[Tampilkan Error Pemutaran]
     
-    ExtractStream --> Cache[Cache Stream Temporarily]
-    Cache --> PlayFallback[Play Audio with Spotify Metadata]
+    ExtractStream --> Cache[Simpan Aliran di Tembolok Sementara]
+    Cache --> PlayFallback[Putar Audio dengan Metadata Spotify]
 ```
 
-### Serverless Download Manager State Machine
-This diagram shows the lifecycle of a download task.
+### State Machine Pengelola Unduhan Tanpa Server
+Diagram ini menunjukkan siklus hidup dari sebuah tugas unduhan.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Queued : User Initiates Download
-    Queued --> Resolving : Processing Queue
-    Resolving --> Downloading : Stream URL Acquired
+    [*] --> Queued : Pengguna Memulai Unduhan
+    Queued --> Resolving : Memproses Antrean
+    Resolving --> Downloading : URL Aliran Diperoleh
     
-    Downloading --> Paused : User Pauses
-    Paused --> Downloading : User Resumes (HTTP Range Header)
+    Downloading --> Paused : Pengguna Menjeda
+    Paused --> Downloading : Pengguna Melanjutkan (HTTP Range Header)
     
-    Downloading --> Converting : Download Complete (Temp File)
-    Converting --> Completed : FFmpegKit Success
+    Downloading --> Converting : Unduhan Selesai (File Sementara)
+    Converting --> Completed : FFmpegKit Sukses
     
-    Downloading --> Failed : Network Error / 403 Forbidden
-    Converting --> Failed : FFmpeg Processing Error
+    Downloading --> Failed : Kesalahan Jaringan / 403 Forbidden
+    Converting --> Failed : Kesalahan Pemrosesan FFmpeg
     
-    Completed --> [*] : File Moved to /Music
-    Failed --> [*] : Cleanup Temp Files
+    Completed --> [*] : File Dipindahkan ke /Music
+    Failed --> [*] : Pembersihan File Sementara
 ```
 
 ---
 
-## Extensive Features Breakdown
+## Rincian Fitur Utama
 
-### Dynamic Recommendation Engine
-The application records listening events (triggering after 30 seconds of playback). These events are synced to Firestore. The `HomePage` dynamically constructs Spotify API seed queries based on your recent listening history to generate a personalized "Made For You" feed that evolves alongside your taste.
+### Mesin Rekomendasi Dinamis
+Aplikasi merekam peristiwa mendengarkan (dipicu setelah 30 detik pemutaran). Peristiwa ini disinkronkan ke Firestore. `HomePage` secara dinamis membangun kueri bibit (seed queries) API Spotify berdasarkan riwayat mendengarkan Anda untuk menghasilkan beranda "Made For You" yang dipersonalisasi dan berkembang bersama selera Anda.
 
-### Advanced Serverless Download Manager
-Aetheris does not rely on a central server to process audio downloads.
-* **Direct Stream Extraction**: Bypasses rate limits by establishing direct TCP connections to audio servers.
-* **Format Flexibility**: Downloads can be requested as `MP3`, `AAC`, `OPUS`, `OGG`, `FLAC`, or `WAV`.
-* **Hardware Transcoding**: Uses `ffmpeg_kit_flutter` to transcode files directly on the Android processor.
-* **Anti-Fake Lossless System**: Prevents upscaling an MP3 to FLAC and calling it lossless. The UI dynamically adjusts, ensuring the user is always aware of the source stream's true quality. Hi-Res formats are labeled strictly.
+### Pengelola Unduhan Tingkat Lanjut Tanpa Server
+Aetheris tidak bergantung pada server terpusat untuk memproses unduhan audio.
+* **Ekstraksi Aliran Langsung**: Menembus batas kecepatan dengan membangun koneksi TCP langsung ke server audio.
+* **Fleksibilitas Format**: Unduhan dapat diatur dalam bentuk `MP3`, `AAC`, `OPUS`, `OGG`, `FLAC`, atau `WAV`.
+* **Transkoding Perangkat Keras**: Menggunakan `ffmpeg_kit_flutter` untuk melakukan transkoding file langsung pada prosesor Android.
+* **Sistem Anti-Fake Lossless**: Mencegah peningkatan kualitas paksa (upscaling) dari MP3 ke FLAC untuk mengklaim sebagai lossless. UI secara dinamis menyesuaikan diri, memastikan pengguna selalu mengetahui kualitas sebenarnya dari aliran sumber. Format Hi-Res diberi label secara ketat.
 
-### Native Hardware Integration
-* **Exclusive Mode DAC Bypass**: Instead of using standard Android AudioTrack downsampling, Aetheris utilizes a native MethodChannel to detect external USB DACs and Bluetooth LDAC codecs, ensuring bit-perfect audio delivery to audiophile equipment.
+### Integrasi Perangkat Keras Native
+* **Bypass DAC Mode Eksklusif**: Daripada menggunakan downsampling AudioTrack Android standar, Aetheris memanfaatkan MethodChannel native untuk mendeteksi DAC USB eksternal dan codec Bluetooth LDAC, memastikan pengiriman audio bit-perfect ke peralatan audiophile.
 
-### Cross-Language Romanization
-For fans of international music, Aetheris includes a built-in offline romanization engine. It dynamically converts Korean Hangul and Japanese Kana/Kanji within lyrics into Latin characters in real-time, aiding users who cannot read the native scripts.
+### Romanisasi Lintas Bahasa
+Bagi penggemar musik internasional, Aetheris dilengkapi dengan mesin romanisasi lirik offline bawaan. Mesin ini secara dinamis mengonversi Hangul Korea serta Kana/Kanji Jepang di dalam lirik menjadi karakter Latin secara real-time, membantu pengguna yang tidak dapat membaca skrip aslinya.
 
 ---
 
-## Detailed Configuration Guide
+## Panduan Konfigurasi Detail
 
-To build Aetheris from source, you must configure multiple third-party integrations.
+Untuk membangun Aetheris dari source code, Anda harus mengonfigurasi beberapa integrasi pihak ketiga.
 
-### 1. Spotify Developer Configuration
-Aetheris requires a Spotify Developer Application to fetch metadata.
-1. Navigate to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Create an App.
-3. In the app settings, add your Android Package Name (e.g., `com.example.aetheris`) and your development/production SHA-1 fingerprint.
-4. Add the OAuth Redirect URI: `aetheris://spotify-login`.
-5. Copy your `Client ID` and `Client Secret`.
+### 1. Konfigurasi Developer Spotify
+Aetheris membutuhkan Aplikasi Developer Spotify untuk mengambil metadata.
+1. Navigasi ke [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Buat sebuah Aplikasi (Create an App).
+3. Di pengaturan aplikasi, tambahkan Nama Paket Android Anda (contoh: `com.example.aetheris`) dan sidik jari SHA-1 pengembangan/produksi Anda.
+4. Tambahkan OAuth Redirect URI: `aetheris://spotify-login`.
+5. Salin `Client ID` dan `Client Secret` Anda.
 
-### 2. Firebase Project Setup
-1. Go to the [Firebase Console](https://console.firebase.google.com/).
-2. Create a new project and add an Android app using your package name.
-3. Download the `google-services.json` file and place it in your local `android/app/` directory.
-4. Navigate to **Authentication** and enable **Email/Password**.
-5. Navigate to **Firestore Database** and create a new database.
-6. Set up the following base security rules:
+### 2. Setup Proyek Firebase
+1. Pergi ke [Firebase Console](https://console.firebase.google.com/).
+2. Buat proyek baru dan tambahkan aplikasi Android menggunakan nama paket Anda.
+3. Unduh file `google-services.json` dan letakkan di dalam direktori `android/app/` lokal Anda.
+4. Navigasi ke **Authentication** dan aktifkan **Email/Password**.
+5. Navigasi ke **Firestore Database** dan buat basis data baru.
+6. Siapkan aturan keamanan (security rules) dasar berikut:
 
 ```javascript
 rules_version = '2';
@@ -174,84 +174,84 @@ service cloud.firestore {
 
 ---
 
-## Self-Hosted Lossless Backend
+## Backend Lossless Mandiri (Self-Hosted)
 
-Aetheris supports pointing the application to a private NodeJS server hosting your personal FLAC/WAV music library. This provides a completely self-sovereign lossless streaming experience.
+Aetheris mendukung penyambungan aplikasi ke server NodeJS pribadi yang menyimpan koleksi musik FLAC/WAV Anda. Hal ini memberikan pengalaman streaming lossless yang sepenuhnya berdaulat tanpa bergantung pada fallback streaming lossy.
 
-### Backend Setup
-1. Open the `lossless_backend/` directory.
-2. Run `npm install` to install dependencies.
-3. Create a `.env` file or export the following variables:
+### Setup Backend
+1. Buka direktori `lossless_backend/`.
+2. Jalankan `npm install` untuk menginstal dependensi.
+3. Buat file `.env` atau ekspor variabel berikut:
    ```bash
-   export MUSIC_DIR="/path/to/your/flac/collection"
-   export API_KEY="your_secure_random_key"
+   export MUSIC_DIR="/jalur/ke/koleksi/flac/anda"
+   export API_KEY="kunci_acak_rahasia_anda"
    export PORT=3977
    ```
-4. Run `npm start`.
+4. Jalankan `npm start`.
 
-The backend will recursively scan your music directory, extract ID3/FLAC metadata, and serve an index via HTTP. 
+Backend akan memindai direktori musik Anda secara rekursif, mengekstrak metadata ID3/FLAC, dan menyajikan indeks melalui HTTP.
 
 ---
 
-## Build & Deployment Instructions
+## Panduan Build & Deployment
 
-Aetheris utilizes strict compile-time variables to inject sensitive API keys safely without hardcoding them into the repository.
+Aetheris menggunakan variabel waktu kompilasi (compile-time variables) yang ketat untuk menyuntikkan kunci API sensitif dengan aman tanpa menulisnya langsung ke dalam kode sumber (hardcoding).
 
-### Running in Debug Mode
-To run the application on an emulator or physical device during development:
+### Menjalankan dalam Mode Debug
+Untuk menjalankan aplikasi pada emulator atau perangkat fisik selama pengembangan:
 
 ```bash
 flutter run \
-  --dart-define=SPOTIFY_CLIENT_ID=your_client_id_here \
-  --dart-define=SPOTIFY_CLIENT_SECRET=your_client_secret_here \
-  --dart-define=TIDAL_API_URL=http://your_local_ip:3977 \
-  --dart-define=TIDAL_API_KEY=your_backend_key
+  --dart-define=SPOTIFY_CLIENT_ID=client_id_anda \
+  --dart-define=SPOTIFY_CLIENT_SECRET=client_secret_anda \
+  --dart-define=TIDAL_API_URL=http://ip_lokal_anda:3977 \
+  --dart-define=TIDAL_API_KEY=kunci_backend_anda
 ```
 
-### Compiling for Release (APK)
-Aetheris relies on native C libraries (FFmpegKit). When building for release, code minification and resource shrinking must be carefully managed to prevent the native JNI bindings from being obfuscated. This is already handled in `android/app/build.gradle.kts`.
+### Mengompilasi untuk Rilis (APK)
+Aetheris bergantung pada pustaka C native (FFmpegKit). Saat membangun untuk rilis, minifikasi kode dan pengecilan sumber daya (resource shrinking) harus dikelola dengan hati-hati untuk mencegah ikatan JNI native menjadi tersamarkan (obfuscated). Hal ini telah ditangani di dalam file `android/app/build.gradle.kts`.
 
-To compile a production-ready APK:
+Untuk mengompilasi APK siap produksi:
 
 ```bash
 flutter build apk --release \
-  --dart-define=SPOTIFY_CLIENT_ID=your_client_id_here \
-  --dart-define=SPOTIFY_CLIENT_SECRET=your_client_secret_here
+  --dart-define=SPOTIFY_CLIENT_ID=client_id_anda \
+  --dart-define=SPOTIFY_CLIENT_SECRET=client_secret_anda
 ```
 
-The resulting artifact will be located at `build/app/outputs/flutter-apk/app-release.apk`.
+Artifak yang dihasilkan akan berlokasi di `build/app/outputs/flutter-apk/app-release.apk`.
 
 ---
 
-## Project Structure
+## Struktur Proyek
 
-A brief overview of the directory structure to help developers navigate the repository.
+Gambaran singkat mengenai struktur direktori untuk membantu developer menavigasi repository.
 
 ```text
 Aetheris Audio Player/
-├── android/                 # Native Android build configurations and MethodChannels
-├── lossless_backend/        # Optional NodeJS self-hosted lossless streaming server
-├── lib/                     # Primary Dart source code
-│   ├── app/                 # Root application wrapper and global listeners
-│   ├── models/              # Immutable data models (Track, Album, UserProfile)
-│   ├── pages/               # Flutter screens and UI layouts
-│   ├── providers/           # Riverpod state management and dependency injection
-│   ├── services/            # Core business logic and API integrations
-│   │   ├── download/        # FFmpeg conversion and download queue management
-│   │   ├── firebase/        # Firestore synchronization and Authentication
-│   │   ├── music_sources/   # Pluggable audio resolution adapters
+├── android/                 # Konfigurasi build Android native dan MethodChannels
+├── lossless_backend/        # Server NodeJS opsional untuk streaming lossless mandiri
+├── lib/                     # Kode sumber utama Dart
+│   ├── app/                 # Wrapper root aplikasi dan pendengar global (global listeners)
+│   ├── models/              # Model data yang tidak dapat diubah (Track, Album, UserProfile)
+│   ├── pages/               # Tampilan layar Flutter dan tata letak UI
+│   ├── providers/           # Manajemen state Riverpod dan dependency injection
+│   ├── services/            # Logika bisnis inti dan integrasi API
+│   │   ├── download/        # Konversi FFmpeg dan manajemen antrean unduhan
+│   │   ├── firebase/        # Sinkronisasi Firestore dan Otentikasi
+│   │   ├── music_sources/   # Adaptor resolusi audio yang dapat dipasang-lepas
 │   │   └── ...
-│   ├── state/               # Scoped inherited notifiers (PlayerController)
-│   ├── theme/               # Centralized color palettes and typography
-│   └── widgets/             # Reusable UI components (TrackTile, AlbumArt)
-├── test/                    # Unit and widget test suite
-└── pubspec.yaml             # Dart dependencies and asset declarations
+│   ├── state/               # Pemberitahu pewarisan tertutup (PlayerController)
+│   ├── theme/               # Palet warna terpusat dan tipografi
+│   └── widgets/             # Komponen UI yang dapat digunakan kembali (TrackTile, AlbumArt)
+├── test/                    # Suite pengujian unit dan widget
+└── pubspec.yaml             # Deklarasi dependensi Dart dan aset
 ```
 
 ---
 
-## Disclaimer
+## Penafian
 
-Aetheris is an independent, non-commercial software project developed strictly for educational and personal use. 
-It interacts with public endpoints provided by Spotify and YouTube Music. Aetheris does not distribute copyrighted material, nor does it bypass Digital Rights Management (DRM) technologies. 
-Users of this application are responsible for ensuring that their use complies with the terms of service of all connected third-party platforms. The developers assume no liability for misuse of this software.
+Aetheris adalah proyek perangkat lunak non-komersial independen yang dikembangkan sepenuhnya untuk tujuan pendidikan dan penggunaan pribadi.
+Aplikasi ini berinteraksi dengan endpoint publik yang disediakan oleh Spotify dan YouTube Music. Aetheris tidak mendistribusikan materi berhak cipta, dan tidak meretas atau mem-bypass teknologi Manajemen Hak Digital (Digital Rights Management / DRM).
+Pengguna aplikasi ini bertanggung jawab penuh untuk memastikan bahwa penggunaan mereka mematuhi persyaratan layanan dari semua platform pihak ketiga yang terhubung. Para pengembang tidak bertanggung jawab atas penyalahgunaan perangkat lunak ini.
