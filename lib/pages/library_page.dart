@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/auth_provider.dart';
 
 import '../theme/aetheris_colors.dart';
 
@@ -7,14 +10,14 @@ import '../state/aetheris_scope.dart';
 import '../widgets/album_art.dart';
 import '../widgets/track_tile.dart';
 
-class LibraryPage extends StatefulWidget {
+class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
 
   @override
-  State<LibraryPage> createState() => _LibraryPageState();
+  ConsumerState<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class _LibraryPageState extends ConsumerState<LibraryPage> {
   int _selectedFilter = 0;
   static const _filters = ['Playlists', 'Albums', 'Artists', 'Songs'];
 
@@ -41,7 +44,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  _showCreatePlaylistDialog();
+                },
                 child: const Icon(Icons.add_rounded, color: AetherisColors.accent, size: 28),
               ),
             ],
@@ -142,32 +147,119 @@ class _LibraryPageState extends State<LibraryPage> {
                 // Artists
                 ..._buildArtists(controller.library),
               ] else ...[
-                // Playlists placeholder
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 60),
-                    child: Column(
-                      children: [
-                        Icon(Icons.library_music_rounded, size: 52, color: AetherisColors.textPrimary.withValues(alpha: 0.24)),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No Playlists Yet',
-                          style: TextStyle(color: AetherisColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
+                // Playlists
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: ref.watch(firestoreSyncProvider).watchPlaylists(),
+                  builder: (context, snapshot) {
+                    final playlists = snapshot.data ?? [];
+                    if (playlists.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 60),
+                          child: Column(
+                            children: [
+                              Icon(Icons.library_music_rounded, size: 52, color: AetherisColors.textPrimary.withValues(alpha: 0.24)),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No Playlists Yet',
+                                style: TextStyle(color: AetherisColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Tap the + icon to create a playlist',
+                                style: TextStyle(color: AetherisColors.textSecondary, fontSize: 14),
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Create a playlist to get started',
-                          style: TextStyle(color: AetherisColors.textSecondary, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
+                      );
+                    }
+
+                    return Column(
+                      children: playlists.map((p) {
+                        final trackCount = (p['tracks'] as List?)?.length ?? 0;
+                        return Column(
+                          children: [
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                              leading: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AetherisColors.surfaceRaised,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.queue_music_rounded, color: AetherisColors.textPrimary, size: 28),
+                              ),
+                              title: Text(
+                                p['name'] as String? ?? 'Unnamed Playlist',
+                                style: const TextStyle(
+                                  color: AetherisColors.textPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '$trackCount songs',
+                                style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
+                              ),
+                              trailing: const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary),
+                              onTap: () {
+                                // TODO: Navigate to PlaylistDetailPage
+                              },
+                            ),
+                            Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 88),
+                          ],
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
               ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showCreatePlaylistDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AetherisColors.surfaceRaised,
+          title: const Text('Create Playlist', style: TextStyle(color: AetherisColors.textPrimary)),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: AetherisColors.textPrimary),
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Playlist name',
+              hintStyle: TextStyle(color: AetherisColors.textSecondary),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AetherisColors.textSecondary)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AetherisColors.accent)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: AetherisColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isNotEmpty) {
+                  ref.read(firestoreSyncProvider).createPlaylist(name);
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Create', style: TextStyle(color: AetherisColors.accent, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        );
+      },
     );
   }
 
