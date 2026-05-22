@@ -337,6 +337,111 @@ class FirestoreSyncService extends ChangeNotifier {
   }
 
   // -------------------------------------------------------------------------
+  // Listening Events & Preferences
+  // -------------------------------------------------------------------------
+
+  /// Record a detailed listening event for recommendation processing.
+  Future<void> recordListeningEvent({
+    required String trackId,
+    required String source,
+    required String title,
+    required String artist,
+    required String album,
+    required int durationPlayedMs,
+    required int totalDurationMs,
+    bool skipped = false,
+    bool liked = false,
+    bool addedToPlaylist = false,
+    bool downloaded = false,
+    List<String> genreTags = const [],
+    List<String> artistIds = const [],
+  }) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+
+    final completionRate = totalDurationMs > 0 ? (durationPlayedMs / totalDurationMs) : 0.0;
+
+    await doc.collection('listeningEvents').add({
+      'trackId': trackId,
+      'source': source,
+      'title': title,
+      'artist': artist,
+      'album': album,
+      'playedAt': FieldValue.serverTimestamp(),
+      'durationPlayedMs': durationPlayedMs,
+      'totalDurationMs': totalDurationMs,
+      'completionRate': completionRate,
+      'skipped': skipped,
+      'liked': liked,
+      'addedToPlaylist': addedToPlaylist,
+      'downloaded': downloaded,
+      'genreTags': genreTags,
+      'artistIds': artistIds,
+    });
+  }
+
+  /// Update the user's preference profile based on listening history.
+  Future<void> updatePreferenceProfile({
+    List<String>? topArtists,
+    List<String>? topTracks,
+    List<String>? topGenres,
+    String? sourcePreference,
+  }) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+
+    final updateData = <String, dynamic>{
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+    };
+    if (topArtists != null) updateData['topArtists'] = topArtists;
+    if (topTracks != null) updateData['topTracks'] = topTracks;
+    if (topGenres != null) updateData['topGenres'] = topGenres;
+    if (sourcePreference != null) updateData['sourcePreference'] = sourcePreference;
+
+    await doc.collection('preferenceProfile').doc('main').set(
+      updateData,
+      SetOptions(merge: true),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Library Extras (Albums, Artists, Songs)
+  // -------------------------------------------------------------------------
+
+  Future<void> saveAlbum(String albumId, Map<String, dynamic> albumData) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+    await doc.collection('savedAlbums').doc(albumId).set({
+      ...albumData,
+      'savedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> followArtist(String artistId, Map<String, dynamic> artistData) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+    await doc.collection('followedArtists').doc(artistId).set({
+      ...artistData,
+      'followedAt': FieldValue.serverTimestamp(),
+    });
+  }
+  
+  Future<void> unfollowArtist(String artistId) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+    await doc.collection('followedArtists').doc(artistId).delete();
+  }
+
+  Future<void> saveSong(String songId, Track track) async {
+    final doc = _userDoc;
+    if (doc == null) return;
+    await doc.collection('savedSongs').doc(songId).set({
+      ...track.toJson(),
+      'savedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
 
