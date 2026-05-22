@@ -93,14 +93,8 @@ class _ArtistProfilePageState extends ConsumerState<ArtistProfilePage> {
     ]);
 
     final albumTracks = <SpotifyTrack>[];
-    for (final album in ownedAlbums.take(12)) {
-      final tracks = await spotify.getAlbumTracks(
-        album.id,
-        albumName: album.title,
-        albumImageUrl: album.imageUrl,
-      );
-      albumTracks.addAll(tracks);
-    }
+    // Removed sequential getAlbumTracks loop to massively improve load time
+    // Albums are displayed as albums, not flattened into the songs list.
 
     return _ArtistProfileData(
       tracks: _dedupeTracks([
