@@ -20,17 +20,16 @@ class QualityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(minHeight: compact ? 20 : 26),
+      constraints: BoxConstraints(minHeight: compact ? 18 : 22),
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 11,
-        vertical: compact ? 3 : 5,
+        horizontal: compact ? 4 : 6,
+        vertical: compact ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        // Subtle frosted-glass look: dark semi-transparent fill + white border
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 0.8,
         ),
       ),
@@ -39,11 +38,10 @@ class QualityBadge extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          // Soft white-gray — readable but not loud
-          color: Colors.white.withValues(alpha: 0.68),
-          fontSize: compact ? 9 : 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.7,
+          color: Colors.white.withValues(alpha: 0.8),
+          fontSize: compact ? 8 : 9,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
       ),
     );

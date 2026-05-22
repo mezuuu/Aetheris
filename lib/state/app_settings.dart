@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +15,9 @@ class AppSettings {
     this.crossfadeDuration = 3,
     this.audioQuality = 'High',
     this.downloadFormat = 'MP3',
+    this.translationLanguage = 'id',
+    this.lyricOffsets = const {},
+    this.allowedLocalFolders = const [],
   });
 
   final bool wifiOnly;
@@ -27,6 +31,9 @@ class AppSettings {
   final double crossfadeDuration;
   final String audioQuality;
   final String downloadFormat;
+  final String translationLanguage;
+  final Map<String, int> lyricOffsets;
+  final List<String> allowedLocalFolders;
 
   AppSettings copyWith({
     bool? wifiOnly,
@@ -40,6 +47,9 @@ class AppSettings {
     double? crossfadeDuration,
     String? audioQuality,
     String? downloadFormat,
+    String? translationLanguage,
+    Map<String, int>? lyricOffsets,
+    List<String>? allowedLocalFolders,
   }) {
     return AppSettings(
       wifiOnly: wifiOnly ?? this.wifiOnly,
@@ -53,6 +63,9 @@ class AppSettings {
       crossfadeDuration: crossfadeDuration ?? this.crossfadeDuration,
       audioQuality: audioQuality ?? this.audioQuality,
       downloadFormat: downloadFormat ?? this.downloadFormat,
+      translationLanguage: translationLanguage ?? this.translationLanguage,
+      lyricOffsets: lyricOffsets ?? this.lyricOffsets,
+      allowedLocalFolders: allowedLocalFolders ?? this.allowedLocalFolders,
     );
   }
 }
@@ -75,8 +88,19 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
   static const _kCrossfadeDuration = 'settings.crossfade_duration';
   static const _kAudioQuality = 'settings.audio_quality';
   static const _kDownloadFormat = 'settings.download_format';
+  static const _kTranslationLanguage = 'settings.translation_language';
+  static const _kLyricOffsets = 'settings.lyric_offsets';
+  static const _kAllowedLocalFolders = 'settings.allowed_local_folders';
 
   void _load() {
+    final String? offsetsJson = _prefs.getString(_kLyricOffsets);
+    Map<String, int> loadedOffsets = {};
+    if (offsetsJson != null) {
+      try {
+        loadedOffsets = Map<String, int>.from(jsonDecode(offsetsJson));
+      } catch (_) {}
+    }
+
     state = state.copyWith(
       wifiOnly: _prefs.getBool(_kWifiOnly) ?? state.wifiOnly,
       exclusiveMode: _prefs.getBool(_kExclusiveMode) ?? state.exclusiveMode,
@@ -93,6 +117,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
       audioQuality: _prefs.getString(_kAudioQuality) ?? state.audioQuality,
       downloadFormat:
           _prefs.getString(_kDownloadFormat) ?? state.downloadFormat,
+      translationLanguage:
+          _prefs.getString(_kTranslationLanguage) ?? state.translationLanguage,
+      lyricOffsets: loadedOffsets,
+      allowedLocalFolders: _prefs.getStringList(_kAllowedLocalFolders) ?? state.allowedLocalFolders,
     );
   }
 
@@ -109,7 +137,10 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
       ..setBool(_kShowNotification, value.showNotification)
       ..setDouble(_kCrossfadeDuration, value.crossfadeDuration)
       ..setString(_kAudioQuality, value.audioQuality)
-      ..setString(_kDownloadFormat, value.downloadFormat);
+      ..setString(_kDownloadFormat, value.downloadFormat)
+      ..setString(_kTranslationLanguage, value.translationLanguage)
+      ..setString(_kLyricOffsets, jsonEncode(value.lyricOffsets))
+      ..setStringList(_kAllowedLocalFolders, value.allowedLocalFolders);
   }
 }
 

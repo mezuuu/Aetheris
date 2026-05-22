@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -7,13 +9,16 @@ import '../theme/aetheris_colors.dart';
 // Ambient blobs use ImageFiltered (not BackdropFilter) so they are safe on
 // Impeller/OpenGLES. They draw INTO the scene, not blur behind widgets.
 class AmbientBackground extends StatelessWidget {
-  const AmbientBackground({super.key, this.colors});
+  const AmbientBackground({super.key, this.colors, this.artworkUrl});
 
   final List<Color>? colors;
+  final String? artworkUrl;
 
   @override
   Widget build(BuildContext context) {
-    final palette = colors ?? const [AetherisColors.accent, AetherisColors.sky];
+    final palette = (colors == null || colors!.isEmpty)
+        ? const [AetherisColors.accent, AetherisColors.sky]
+        : colors!;
 
     return Stack(
       fit: StackFit.expand,
@@ -22,6 +27,28 @@ class AmbientBackground extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [AetherisColors.background, AetherisColors.deepMidnight],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+        if (_hasArtwork)
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 54, sigmaY: 54),
+              child: Transform.scale(
+                scale: 1.18,
+                child: _AmbientArtwork(url: artworkUrl!),
+              ),
+            ),
+          ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AetherisColors.background.withValues(alpha: 0.62),
+                AetherisColors.deepMidnight.withValues(alpha: 0.86),
+              ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -46,6 +73,63 @@ class AmbientBackground extends StatelessWidget {
           right: 40,
         ),
       ],
+    );
+  }
+
+  bool get _hasArtwork {
+    final value = artworkUrl?.trim();
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+    final uri = Uri.tryParse(value);
+    return uri != null && uri.hasScheme;
+  }
+}
+
+class _AmbientArtwork extends StatelessWidget {
+  const _AmbientArtwork({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.startsWith('data:image/')) {
+      final comma = url.indexOf(',');
+      if (comma > 0) {
+        try {
+          return Image.memory(
+            base64Decode(url.substring(comma + 1)),
+            fit: BoxFit.cover,
+            opacity: const AlwaysStoppedAnimation(0.46),
+            gaplessPlayback: true,
+          );
+        } catch (_) {
+          return const SizedBox.shrink();
+        }
+      }
+    }
+
+    final parsed = Uri.tryParse(url);
+    if (parsed != null && parsed.scheme == 'file') {
+      return Image.file(
+        File(parsed.toFilePath()),
+        fit: BoxFit.cover,
+        opacity: const AlwaysStoppedAnimation(0.46),
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) {
+          return const SizedBox.shrink();
+        },
+      );
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      opacity: const AlwaysStoppedAnimation(0.46),
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) {
+        return const SizedBox.shrink();
+      },
     );
   }
 }

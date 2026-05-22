@@ -2,21 +2,38 @@ import 'package:flutter/material.dart';
 
 import '../theme/aetheris_colors.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../data/demo_library.dart';
+import '../models/track.dart';
+import '../providers/search_provider.dart';
 import '../state/aetheris_scope.dart';
 import '../widgets/album_art.dart';
-import '../widgets/track_tile.dart';
+import 'artist_profile_page.dart';
+import 'metadata_editor_page.dart';
+import 'spotify_album_page.dart';
 
-class SearchPage extends StatefulWidget {
+class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
 
   @override
-  State<SearchPage> createState() => _SearchPageState();
+  ConsumerState<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends ConsumerState<SearchPage> {
   final _controller = TextEditingController();
-  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill controller if there is an existing query
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final query = ref.read(searchQueryProvider);
+      if (query.isNotEmpty) {
+        _controller.text = query;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -27,7 +44,9 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     final appController = AetherisScope.of(context);
-    final results = _query.isEmpty ? <dynamic>[] : appController.searchLibrary(_query);
+    final searchState = ref.watch(searchStateProvider);
+    final recentSearches = ref.watch(recentSearchesProvider);
+    final currentQuery = ref.watch(searchQueryProvider);
 
     return ListView(
       key: const ValueKey('search'),
@@ -67,25 +86,60 @@ class _SearchPageState extends State<SearchPage> {
                     hintStyle: TextStyle(color: AetherisColors.textSecondary, fontSize: 16),
                     contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged: (v) => ref.read(searchQueryProvider.notifier).state = v,
                 ),
               ),
-              if (_query.isNotEmpty)
+              if (currentQuery.isNotEmpty)
                 GestureDetector(
                   onTap: () {
                     _controller.clear();
-                    setState(() => _query = '');
+                    ref.read(searchStateProvider.notifier).clear();
                   },
                   child: const Icon(Icons.cancel_rounded, color: AetherisColors.textSecondary, size: 20),
                 ),
             ],
           ),
         ),
+        const SizedBox(height: 16),
+
+        // ── Search Source Chips ──────────────────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _SourceChip(label: 'All', value: SearchSource.all, current: searchState.activeSource),
+              const SizedBox(width: 8),
+              _SourceChip(label: 'Spotify', value: SearchSource.spotify, current: searchState.activeSource),
+              const SizedBox(width: 8),
+              _SourceChip(label: 'YouTube Music', value: SearchSource.youtube, current: searchState.activeSource),
+              const SizedBox(width: 8),
+              _SourceChip(label: 'Local', value: SearchSource.local, current: searchState.activeSource),
+            ],
+          ),
+        ),
         const SizedBox(height: 24),
 
         // ── Search results ───────────────────────────────────────────────────
-        if (_query.isNotEmpty) ...[
-          if (results.isEmpty)
+        if (currentQuery.isNotEmpty) ...[
+          if (searchState.isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 40),
+                child: CircularProgressIndicator(color: AetherisColors.accentSoft),
+              ),
+            )
+          else if (searchState.error != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: Text(
+                  searchState.error!,
+                  style: const TextStyle(color: AetherisColors.error, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else if (searchState.results.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(top: 40),
@@ -97,17 +151,46 @@ class _SearchPageState extends State<SearchPage> {
             )
           else ...[
             Text(
-              '${results.length} results for "$_query"',
+              '${searchState.results.length} results for "$currentQuery"',
               style: TextStyle(color: AetherisColors.textPrimary.withValues(alpha: 0.54), fontSize: 13),
             ),
             const SizedBox(height: 14),
-            for (final track in results) ...[
-              TrackTile(track: track),
+            for (final result in searchState.results) ...[
+              _SearchResultRow(result: result),
               Divider(color: AetherisColors.textPrimary.withValues(alpha: 0.12), height: 1, indent: 72),
             ],
           ],
         ] else ...[
-          // ── Browse Categories ─────────────────────────────────────────────
+          // ── Recent Searches ─────────────────────────────────────────────
+          if (recentSearches.isNotEmpty) ...[
+            const Text(
+              'Recent Searches',
+              style: TextStyle(
+                color: AetherisColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final query in recentSearches.take(5))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.history_rounded, color: AetherisColors.textSecondary),
+                title: Text(
+                  query,
+                  style: const TextStyle(color: AetherisColors.textPrimary, fontSize: 16),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AetherisColors.textSecondary, size: 20),
+                  onPressed: () => ref.read(recentSearchesProvider.notifier).removeSearch(query),
+                ),
+                onTap: () {
+                  _controller.text = query;
+                  ref.read(searchStateProvider.notifier).search(query);
+                },
+              ),
+            const SizedBox(height: 32),
+          ],
           const Text(
             'Browse Categories',
             style: TextStyle(
@@ -116,7 +199,7 @@ class _SearchPageState extends State<SearchPage> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -154,6 +237,170 @@ class _SearchPageState extends State<SearchPage> {
   }
 }
 
+class _SourceChip extends ConsumerWidget {
+  const _SourceChip({required this.label, required this.value, required this.current});
+  final String label;
+  final SearchSource value;
+  final SearchSource current;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = value == current;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => ref.read(searchSourceProvider.notifier).state = value,
+      selectedColor: AetherisColors.accentSoft,
+      backgroundColor: AetherisColors.surfaceRaised,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : AetherisColors.textSecondary,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      side: BorderSide.none,
+    );
+  }
+}
+
+class _SearchResultRow extends StatelessWidget {
+  const _SearchResultRow({required this.result});
+  final SearchResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = AetherisScope.of(context);
+    final isTrack = result.type == SearchResultType.track;
+    final track = isTrack ? result.toTrack() : Track.empty;
+    
+    Widget badge;
+    if (result.type == SearchResultType.artist) {
+      badge = _Badge(color: AetherisColors.accentSoft, icon: Icons.person_rounded);
+    } else if (result.type == SearchResultType.album) {
+      badge = _Badge(color: Colors.blueGrey, icon: Icons.album_rounded);
+    } else if (result.type == SearchResultType.playlist) {
+      badge = _Badge(color: Colors.green, icon: Icons.queue_music_rounded);
+    } else {
+      badge = const SizedBox();
+    }
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+      leading: SizedBox(
+        width: 48,
+        height: 48,
+        child: Stack(
+          children: [
+            if (isTrack)
+              AlbumArt(track: track, size: 48, radius: 4, showBadge: false)
+            else
+              _SearchArtwork(
+                imageUrl: result.coverUrl,
+                isCircle: result.type == SearchResultType.artist,
+              ),
+            if (result.type != SearchResultType.track)
+              Positioned(right: -2, bottom: -2, child: badge),
+          ],
+        ),
+      ),
+      title: Text(
+        result.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: AetherisColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text(
+        _subtitleFor(result),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
+      ),
+      trailing: result.type == SearchResultType.artist
+          ? const Icon(Icons.chevron_right_rounded, color: AetherisColors.textSecondary)
+          : GestureDetector(
+              onTap: isTrack
+                  ? () => showTrackOptions(context, track)
+                  : null,
+              child: const Icon(Icons.more_horiz_rounded, color: AetherisColors.textSecondary),
+            ),
+      onTap: () {
+        if (result.type == SearchResultType.artist &&
+            result.spotifyArtist != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ArtistProfilePage(artist: result.spotifyArtist!),
+            ),
+          );
+          return;
+        }
+        if (result.type == SearchResultType.album &&
+            result.spotifyAlbum != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => SpotifyAlbumPage(album: result.spotifyAlbum!),
+            ),
+          );
+          return;
+        }
+        if (isTrack) {
+          controller.playTrack(track);
+        }
+      },
+    );
+  }
+
+  static String _subtitleFor(SearchResult result) {
+    return switch (result.type) {
+      SearchResultType.artist => 'Artist',
+      SearchResultType.album => 'Album • ${result.artist}',
+      SearchResultType.playlist => 'Playlist • ${result.artist}',
+      SearchResultType.track => result.source == SearchSource.spotify
+          ? 'Song • ${result.artist}'
+          : result.artist,
+    };
+  }
+}
+
+class _SearchArtwork extends StatelessWidget {
+  const _SearchArtwork({required this.imageUrl, required this.isCircle});
+
+  final String? imageUrl;
+  final bool isCircle;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = isCircle ? 24.0 : 4.0;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        width: 48,
+        height: 48,
+        color: AetherisColors.surfaceRaised,
+        child: imageUrl == null
+            ? Icon(
+                isCircle ? Icons.person_rounded : Icons.music_note_rounded,
+                color: AetherisColors.textSecondary,
+              )
+            : Image.network(imageUrl!, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.color, required this.icon});
+  final Color color;
+  final IconData icon;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: Icon(icon, color: Colors.white, size: 10),
+    );
+  }
+}
+
 class _SearchTrackRow extends StatelessWidget {
   const _SearchTrackRow({required this.track});
   final dynamic track;
@@ -176,7 +423,10 @@ class _SearchTrackRow extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
       ),
-      trailing: const Icon(Icons.more_horiz_rounded, color: AetherisColors.textSecondary),
+      trailing: GestureDetector(
+        onTap: () => showTrackOptions(context, track as Track),
+        child: const Icon(Icons.more_horiz_rounded, color: AetherisColors.textSecondary),
+      ),
       onTap: () => controller.playTrack(track),
     );
   }

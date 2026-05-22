@@ -80,6 +80,10 @@ class DailyMixCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mixColor = track.coverColors.isEmpty
+        ? const Color(0xFF0F273F)
+        : track.coverColors.first;
+
     return GlassContainer(
       padding: EdgeInsets.zero,
       radius: 12,
@@ -100,7 +104,7 @@ class DailyMixCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
                     colors: [
-                      track.coverColors.first.withValues(alpha: 0.90),
+                      mixColor.withValues(alpha: 0.90),
                       AetherisColors.surfaceElevated,
                     ],
                     begin: Alignment.topLeft,

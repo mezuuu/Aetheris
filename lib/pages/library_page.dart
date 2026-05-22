@@ -184,7 +184,11 @@ class _LibraryPageState extends State<LibraryPage> {
               height: 52,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(colors: (track.coverColors as List<Color>)),
+                gradient: LinearGradient(
+                  colors: track.coverColors.isEmpty
+                      ? const [Color(0xFF0F273F), Color(0xFF8C5B7D)]
+                      : (track.coverColors as List<Color>),
+                ),
               ),
               child: const Icon(Icons.person_rounded, color: AetherisColors.textPrimary, size: 24),
             ),

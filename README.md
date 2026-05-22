@@ -1,16 +1,27 @@
-# aetheris_audio_player
+# Aetheris Audio Player
 
-A new Flutter project.
+Aetheris is a premium Hi-Fi music player built with Flutter, Riverpod, and FFmpegKit. It features unified streaming (Spotify, YouTube, Deezer), lossless audio downloads, and a beautiful UI.
+
+## Features
+
+- **Unified Music Source**: Aggregates metadata from Spotify/Deezer and streams from YouTube Music.
+- **Native Download Manager**: Concurrent downloads with FFmpeg transcoding to MP3, FLAC, WAV, AAC, OPUS, OGG.
+- **Persistent Queue**: Downloads pause and resume automatically across app restarts.
+- **Offline Library**: Browse and play downloaded files directly.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+Aetheris is now 100% Dart/Flutter. The Python backend has been completely replaced with a native `ffmpeg_kit_flutter` implementation.
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter clean
+flutter pub get
+flutter run
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Architecture
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **State Management**: Riverpod (`services_provider.dart`)
+- **Database**: Isar & SharedPreferences
+- **Download Engine**: Dio (HTTP) + FFmpegKit (Conversion)
+- **Audio Playback**: `just_audio` + `media_kit`

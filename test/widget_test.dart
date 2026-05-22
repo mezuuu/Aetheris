@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aetheris_audio_player/app/aetheris_app.dart';
+import 'package:aetheris_audio_player/state/app_settings.dart';
 
 void main() {
   Future<void> openMainShell(WidgetTester tester) async {
@@ -10,10 +13,16 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
     await tester.pumpWidget(
-      const AetherisApp(
-        showOnboarding: false,
-        showLogin: false,
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const AetherisApp(
+          showOnboarding: false,
+          showLogin: false,
+        ),
       ),
     );
     await tester.pump();
@@ -44,8 +53,14 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
     await tester.pumpWidget(
-      const AetherisApp(showOnboarding: false),
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const AetherisApp(showOnboarding: false),
+      ),
     );
     await tester.pump();
 
@@ -73,8 +88,14 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
     await tester.pumpWidget(
-      const AetherisApp(showOnboarding: false),
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const AetherisApp(showOnboarding: false),
+      ),
     );
     await tester.pump();
 

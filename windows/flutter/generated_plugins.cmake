@@ -3,9 +3,15 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
+  cloud_firestore
   connectivity_plus
+  firebase_auth
+  firebase_core
+  flutter_secure_storage_windows
   media_kit_video
   permission_handler_windows
+  url_launcher_windows
   volume_controller
 )
 

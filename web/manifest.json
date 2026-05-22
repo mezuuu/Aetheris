@@ -1,11 +1,11 @@
 {
-    "name": "aetheris_audio_player",
-    "short_name": "aetheris_audio_player",
+    "name": "Aetheris",
+    "short_name": "Aetheris",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Aetheris premium Hi-Fi music player.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

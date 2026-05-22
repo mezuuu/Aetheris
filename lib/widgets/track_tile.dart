@@ -40,7 +40,7 @@ class TrackTile extends StatelessWidget {
         children: [
           if (showIndex != null)
             SizedBox(
-              width: 26,
+              width: 32,
               child: Text(
                 showIndex.toString(),
                 style: const TextStyle(
@@ -48,9 +48,8 @@ class TrackTile extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-            )
-          else
-            AlbumArt(track: track, size: compact ? 44 : 52, radius: 10),
+            ),
+          AlbumArt(track: track, size: compact ? 44 : 52, radius: 10),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -84,7 +83,7 @@ class TrackTile extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Edit metadata',
+            tooltip: 'More options',
             icon: const Icon(Icons.more_vert_rounded),
             color: AetherisColors.textSecondary,
             onPressed: () => showMetadataEditor(context, track),

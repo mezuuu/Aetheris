@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "aetheris_audio_player" "\0"
+            VALUE "FileDescription", "Aetheris" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "aetheris_audio_player" "\0"
+            VALUE "InternalName", "Aetheris" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "aetheris_audio_player.exe" "\0"
-            VALUE "ProductName", "aetheris_audio_player" "\0"
+            VALUE "OriginalFilename", "Aetheris.exe" "\0"
+            VALUE "ProductName", "Aetheris" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

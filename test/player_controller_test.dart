@@ -103,6 +103,35 @@ void main() {
     expect(controller.isPlaying, isTrue);
   });
 
+  test('skipPrevious restarts current track after five seconds', () {
+    final audioEngine = _FakeAudioPlaybackEngine();
+    final controller = PlayerController(
+      audioEngine: audioEngine,
+      autoPlay: false,
+      initialPosition: Duration.zero,
+    );
+    addTearDown(controller.dispose);
+
+    controller.seekToPercent(0.1);
+    final current = controller.currentTrack;
+    controller.skipPrevious();
+
+    expect(controller.currentTrack, current);
+    expect(controller.position, Duration.zero);
+  });
+
+  test('skipPrevious goes to previous track at or before five seconds', () {
+    final controller = createController(autoPlay: false);
+    addTearDown(controller.dispose);
+
+    controller.playTrack(demoTracks[1]);
+    controller.advance(const Duration(seconds: 5));
+    controller.skipPrevious();
+
+    expect(controller.currentTrack, demoTracks.first);
+    expect(controller.position, Duration.zero);
+  });
+
   test('toggleLike adds and removes liked status', () {
     final controller = createController();
     addTearDown(controller.dispose);
@@ -194,10 +223,16 @@ class _FakeAudioPlaybackEngine implements AudioPlaybackEngine {
       StreamController<bool>.broadcast();
   final StreamController<void> _completedController =
       StreamController<void>.broadcast();
+  final StreamController<String> _errorController =
+      StreamController<String>.broadcast();
 
   final List<String> loadCalls = [];
   int playCount = 0;
   int pauseCount = 0;
+
+  @override
+  Stream<Duration> get durationStream => _durationController.stream;
+  final _durationController = StreamController<Duration>.broadcast();
 
   @override
   Stream<Duration> get positionStream => _positionController.stream;
@@ -210,6 +245,9 @@ class _FakeAudioPlaybackEngine implements AudioPlaybackEngine {
 
   @override
   Stream<void> get completedStream => _completedController.stream;
+
+  @override
+  Stream<String> get errorStream => _errorController.stream;
 
   @override
   Future<void> load(
@@ -242,5 +280,6 @@ class _FakeAudioPlaybackEngine implements AudioPlaybackEngine {
     await _playingController.close();
     await _bufferingController.close();
     await _completedController.close();
+    await _errorController.close();
   }
 }

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/languages.dart';
+import '../providers/auth_provider.dart';
 import '../state/app_settings.dart';
 import '../theme/aetheris_colors.dart';
 import 'eq_page.dart';
+import 'language_picker_page.dart';
+import 'local_folders_page.dart';
+import 'login_page.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -103,6 +108,24 @@ class SettingsPage extends ConsumerWidget {
           onChanged: (v) => notifier.update(settings.copyWith(showLyrics: v)),
         ),
         _NavTile(
+          title: 'Local Music Folders',
+          subtitle: settings.allowedLocalFolders.isEmpty 
+            ? 'No folders configured' 
+            : '${settings.allowedLocalFolders.length} folder(s) added',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LocalFoldersPage()),
+          ),
+        ),
+        _NavTile(
+          title: 'Lyrics Translation Language',
+          subtitle: LanguageList.getByCode(settings.translationLanguage)?.name ?? 'Indonesian',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LanguagePickerPage()),
+          ),
+        ),
+        _NavTile(
           title: 'Equalizer',
           onTap:
               () => Navigator.push(
@@ -158,10 +181,11 @@ class SettingsPage extends ConsumerWidget {
         ),
         _ToggleTile(
           title: 'Exclusive Mode',
-          subtitle: 'Direct hardware access for bit-perfect audio',
+          subtitle: 'Automatically bypasses Android resampler when DAC/LDAC is connected',
           value: settings.exclusiveMode,
-          onChanged:
-              (v) => notifier.update(settings.copyWith(exclusiveMode: v)),
+          onChanged: (v) {
+            notifier.update(settings.copyWith(exclusiveMode: v));
+          },
         ),
         const SizedBox(height: 24),
 
@@ -209,19 +233,22 @@ class SettingsPage extends ConsumerWidget {
         const SizedBox(height: 32),
 
         // Sign out
-        Center(
-          child: TextButton(
-            onPressed: () {},
-            child: const Text(
-              'Log out',
-              style: TextStyle(
-                color: AetherisColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+        if (ref.watch(authServiceProvider).isSignedIn)
+          Center(
+            child: TextButton(
+              onPressed: () {
+                ref.read(authServiceProvider).signOut();
+              },
+              child: const Text(
+                'Log out',
+                style: TextStyle(
+                  color: AetherisColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
-        ),
         const SizedBox(height: 8),
       ],
     );
@@ -250,9 +277,13 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ─── Account tile ─────────────────────────────────────────────────────────────
-class _AccountTile extends StatelessWidget {
+class _AccountTile extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authServiceProvider);
+    final user = auth.currentUser;
+    final isLoggedIn = auth.isSignedIn;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: Container(
@@ -268,23 +299,35 @@ class _AccountTile extends StatelessWidget {
           size: 28,
         ),
       ),
-      title: const Text(
-        'Akbar',
-        style: TextStyle(
+      title: Text(
+        isLoggedIn ? (user?.displayName ?? user?.email ?? 'User') : 'Offline Mode',
+        style: const TextStyle(
           color: AetherisColors.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
       ),
-      subtitle: const Text(
-        'View profile',
-        style: TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
+      subtitle: Text(
+        isLoggedIn ? 'View profile' : 'Tap to log in',
+        style: const TextStyle(color: AetherisColors.textSecondary, fontSize: 13),
       ),
       trailing: const Icon(
         Icons.chevron_right_rounded,
         color: AetherisColors.textSecondary,
       ),
-      onTap: () {},
+      onTap: () {
+        if (!isLoggedIn) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LoginPage(
+                onLogin: () => Navigator.pop(context),
+                onSkip: () => Navigator.pop(context),
+              ),
+            ),
+          );
+        }
+      },
     );
   }
 }
@@ -483,3 +526,5 @@ class _NavTile extends StatelessWidget {
     );
   }
 }
+
+

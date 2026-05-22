@@ -12,6 +12,10 @@ class MiniPlayer extends StatelessWidget {
     final controller = AetherisScope.of(context);
     final track = controller.currentTrack;
 
+    if (track.id == 'empty') {
+      return const SizedBox.shrink();
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -88,6 +92,22 @@ class MiniPlayer extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
+            if (controller.playbackError != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  controller.playbackError!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.redAccent.withValues(alpha: 0.92),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
             // Thin progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(999),

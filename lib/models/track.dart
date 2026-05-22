@@ -13,12 +13,28 @@ class Track {
     required this.coverColors,
     required this.lyrics,
     this.streamUrl,
+    this.fallbackStreamUrls = const [],
     this.artworkUrl,
     this.isBitPerfect = false,
     this.playCount = 0,
+    this.isrc,
   }) : assert(bitDepth > 0),
        assert(sampleRateKhz > 0),
        assert(playCount >= 0);
+
+  static const empty = Track(
+    id: 'empty',
+    title: 'Not Playing',
+    artist: 'Select a track to play',
+    album: '',
+    format: '',
+    bitDepth: 16,
+    sampleRateKhz: 44,
+    duration: Duration.zero,
+    coverColors: [Color(0xFF202020), Color(0xFF121212)],
+    lyrics: [],
+  );
+
 
   factory Track.fromJson(Map<String, Object?> json) {
     return Track(
@@ -33,9 +49,11 @@ class Track {
       coverColors: _readColors(json['coverColors']),
       lyrics: _readStringList(json['lyrics']),
       streamUrl: _readNullableString(json, 'streamUrl'),
+      fallbackStreamUrls: _readStringList(json['fallbackStreamUrls']),
       artworkUrl: _readNullableString(json, 'artworkUrl'),
       isBitPerfect: json['isBitPerfect'] == true,
       playCount: _readInt(json, 'playCount'),
+      isrc: _readNullableString(json, 'isrc'),
     );
   }
 
@@ -50,9 +68,13 @@ class Track {
   final List<Color> coverColors;
   final List<String> lyrics;
   final String? streamUrl;
+  final List<String> fallbackStreamUrls;
   final String? artworkUrl;
   final bool isBitPerfect;
   final int playCount;
+
+  /// ISRC code for cross-service matching (Spotify → Deezer → YouTube).
+  final String? isrc;
 
   bool get isHiRes => bitDepth >= 24 || sampleRateKhz >= 88;
 
@@ -78,6 +100,18 @@ class Track {
       return null;
     }
     return uri;
+  }
+
+  List<Uri> get streamUris {
+    final uris = <Uri>[
+      if (streamUri case final primary?) primary,
+      for (final value in fallbackStreamUrls)
+        if (_tryReadUri(value) case final fallback?) fallback,
+    ];
+    final seen = <String>{};
+    return List<Uri>.unmodifiable(
+      uris.where((uri) => seen.add(uri.toString())),
+    );
   }
 
   Uri? get artworkUri {
@@ -118,9 +152,11 @@ class Track {
       'coverColors': coverColors.map(_colorToHex).toList(),
       'lyrics': lyrics,
       'streamUrl': streamUrl,
+      'fallbackStreamUrls': fallbackStreamUrls,
       'artworkUrl': artworkUrl,
       'isBitPerfect': isBitPerfect,
       'playCount': playCount,
+      'isrc': isrc,
     };
   }
 
@@ -136,9 +172,11 @@ class Track {
     List<Color>? coverColors,
     List<String>? lyrics,
     String? streamUrl,
+    List<String>? fallbackStreamUrls,
     String? artworkUrl,
     bool? isBitPerfect,
     int? playCount,
+    String? isrc,
   }) {
     return Track(
       id: id ?? this.id,
@@ -152,9 +190,11 @@ class Track {
       coverColors: coverColors ?? this.coverColors,
       lyrics: lyrics ?? this.lyrics,
       streamUrl: streamUrl ?? this.streamUrl,
+      fallbackStreamUrls: fallbackStreamUrls ?? this.fallbackStreamUrls,
       artworkUrl: artworkUrl ?? this.artworkUrl,
       isBitPerfect: isBitPerfect ?? this.isBitPerfect,
       playCount: playCount ?? this.playCount,
+      isrc: isrc ?? this.isrc,
     );
   }
 
@@ -176,6 +216,18 @@ class Track {
       return value.trim();
     }
     return null;
+  }
+
+  static Uri? _tryReadUri(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme) {
+      return null;
+    }
+    return uri;
   }
 
   static int _readInt(

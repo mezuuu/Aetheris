@@ -33,6 +33,16 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Local lossless backend secrets/catalog
+lossless_backend/.env
+Music/catalog.json
+
+# Download backend (SpotiFLAC)
+__pycache__/
+download_backend/SpotiFLAC/__pycache__/
+download_backend/SpotiFLAC/**/__pycache__/
+download_backend/downloads/
+
 # Symbolication related
 app.*.symbols
 
@@ -43,3 +53,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets and Test Media
+android/app/google-services.json
+Music/
+*.m4a
+*.mp3
+*.flac
+*.wav

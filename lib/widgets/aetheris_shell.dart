@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../pages/home_page.dart';
@@ -9,10 +10,11 @@ import '../pages/onboarding_page.dart';
 import '../pages/search_page.dart';
 import '../pages/settings_page.dart';
 import '../state/aetheris_scope.dart';
+import '../state/app_settings.dart';
 import '../theme/aetheris_colors.dart';
 import 'mini_player.dart';
 
-class AetherisShell extends StatefulWidget {
+class AetherisShell extends ConsumerStatefulWidget {
   const AetherisShell({
     super.key,
     this.showOnboarding = true,
@@ -23,12 +25,16 @@ class AetherisShell extends StatefulWidget {
   final bool showLogin;
 
   @override
-  State<AetherisShell> createState() => _AetherisShellState();
+  ConsumerState<AetherisShell> createState() => _AetherisShellState();
 }
 
-class _AetherisShellState extends State<AetherisShell> {
+class _AetherisShellState extends ConsumerState<AetherisShell> {
+  static const _onboardingDoneKey = 'aetheris.onboarding_done';
+  static const _loginDoneKey = 'aetheris.login_done';
+
   bool _onboardingDone = false;
   bool _loginDone = false;
+  bool _gateLoaded = false;
   bool _didRequestMediaPermission = false;
 
   static const _pages = [
@@ -37,6 +43,39 @@ class _AetherisShellState extends State<AetherisShell> {
     LibraryPage(),
     SettingsPage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGateState();
+  }
+
+  Future<void> _loadGateState() async {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      _onboardingDone = prefs.getBool(_onboardingDoneKey) ?? false;
+      _loginDone = prefs.getBool(_loginDoneKey) ?? false;
+    } catch (_) {
+      // Tests and preview builds may not provide SharedPreferences.
+    }
+    if (mounted) {
+      setState(() => _gateLoaded = true);
+    }
+  }
+
+  Future<void> _markOnboardingDone() async {
+    setState(() => _onboardingDone = true);
+    try {
+      await ref.read(sharedPreferencesProvider).setBool(_onboardingDoneKey, true);
+    } catch (_) {}
+  }
+
+  Future<void> _markLoginDone() async {
+    setState(() => _loginDone = true);
+    try {
+      await ref.read(sharedPreferencesProvider).setBool(_loginDoneKey, true);
+    } catch (_) {}
+  }
 
   @override
   void didChangeDependencies() {
@@ -67,20 +106,24 @@ class _AetherisShellState extends State<AetherisShell> {
   Widget build(BuildContext context) {
     final controller = AetherisScope.of(context);
 
+    if (!_gateLoaded) {
+      return const Scaffold(backgroundColor: AetherisColors.background);
+    }
+
     if (widget.showOnboarding && !_onboardingDone) {
       return OnboardingPage(
-        onDone: () => setState(() => _onboardingDone = true),
+        onDone: _markOnboardingDone,
       );
     }
 
     if (widget.showLogin && !_loginDone) {
       return LoginPage(
         onLogin: () {
-          setState(() => _loginDone = true);
+          _markLoginDone();
           _requestMediaPermissionAndRefresh();
         },
         onSkip: () {
-          setState(() => _loginDone = true);
+          _markLoginDone();
           _requestMediaPermissionAndRefresh();
         },
       );

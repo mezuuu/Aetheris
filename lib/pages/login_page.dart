@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/auth_provider.dart';
 import '../theme/aetheris_colors.dart';
 import '../widgets/ambient_background.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key, required this.onLogin, required this.onSkip});
 
   final VoidCallback onLogin;
   final VoidCallback onSkip;
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   _LoginAction? _submittingAction;
@@ -39,15 +41,34 @@ class _LoginPageState extends State<LoginPage> {
       _errorText = null;
     });
 
-    // Yield one frame before building the full app shell. This avoids doing
-    // keyboard dismissal, button state, and shell construction in one event.
-    await Future<void>.delayed(const Duration(milliseconds: 120));
+    try {
+      if (action == _LoginAction.password) {
+        await ref.read(authServiceProvider).signInWithEmail(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
+      } else {
+        final user = await ref.read(authServiceProvider).signInWithGoogle();
+        if (user == null) {
+          // User cancelled
+          if (mounted) {
+            setState(() {
+              _submittingAction = null;
+            });
+          }
+          return;
+        }
+      }
 
-    if (!mounted) {
-      return;
+      if (!mounted) return;
+      widget.onLogin();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = e.toString();
+        _submittingAction = null;
+      });
     }
-
-    widget.onLogin();
   }
 
   void _skipLogin() {

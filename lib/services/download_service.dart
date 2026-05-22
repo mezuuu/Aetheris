@@ -1,216 +1,201 @@
 import 'package:flutter/foundation.dart';
-import '../models/track.dart';
 
-/// Download service with smart fallback chain
-/// Priority: Spotify → Deezer → Apple Music → YouTube
-class DownloadService {
-  DownloadService({
-    this.dailyDownloadLimit = 50,
+import '../models/track.dart';
+import 'download/download_manager_service.dart';
+import 'download/download_task.dart';
+
+// Re-export task models for UI
+export 'download/download_task.dart' show DownloadJobStatus, DownloadTask;
+typedef DownloadJob = DownloadTask;
+
+/// Represents a download quality option shown to the user.
+class DownloadQuality {
+  const DownloadQuality({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.format,
+    required this.bitrate,
+    this.icon,
   });
 
-  final int dailyDownloadLimit;
-  int _downloadsToday = 0;
-  DateTime? _lastResetDate;
+  final String id;
+  final String label;
+  final String description;
+  final String format;
+  final String bitrate;
+  final String? icon;
 
-  /// Check if download limit reached
-  bool get isDownloadLimitReached {
-    _checkAndResetDailyLimit();
-    return _downloadsToday >= dailyDownloadLimit;
+  static const List<DownloadQuality> presets = [
+    DownloadQuality(
+      id: 'MP3_128',
+      label: 'MP3 Standard',
+      description: 'Standard • 44.1 kHz / 16-bit',
+      format: 'MP3',
+      bitrate: '128 kbps',
+      icon: '📱',
+    ),
+    DownloadQuality(
+      id: 'MP3_320',
+      label: 'MP3 High Quality',
+      description: 'High quality • 48.0 kHz / 16-bit',
+      format: 'MP3',
+      bitrate: '320 kbps',
+      icon: '🎵',
+    ),
+    DownloadQuality(
+      id: 'FLAC',
+      label: 'FLAC Lossless',
+      description: 'CD quality container • 44.1 kHz / 16-bit',
+      format: 'FLAC',
+      bitrate: '1411 kbps',
+      icon: '🎧',
+    ),
+    DownloadQuality(
+      id: 'WAV',
+      label: 'WAV Uncompressed',
+      description: 'Studio raw PCM • 44.1 kHz / 16-bit',
+      format: 'WAV',
+      bitrate: '1411 kbps',
+      icon: '💿',
+    ),
+    DownloadQuality(
+      id: 'AAC_256',
+      label: 'AAC High',
+      description: 'Advanced Audio Coding • 48 kHz / 16-bit',
+      format: 'AAC',
+      bitrate: '256 kbps',
+      icon: '🎶',
+    ),
+    DownloadQuality(
+      id: 'OPUS_160',
+      label: 'Opus Efficient',
+      description: 'Modern efficient format • 48 kHz',
+      format: 'OPUS',
+      bitrate: '160 kbps',
+      icon: '✨',
+    ),
+    DownloadQuality(
+      id: 'OGG_320',
+      label: 'Ogg Vorbis',
+      description: 'Open container • 48 kHz',
+      format: 'OGG',
+      bitrate: '320 kbps',
+      icon: '🎼',
+    ),
+  ];
+}
+
+/// Facade bridging the UI with the core DownloadManagerService.
+class DownloadService extends ChangeNotifier {
+  DownloadService({required DownloadManagerService downloadManager})
+      : _downloadManager = downloadManager {
+    _downloadManager.addListener(notifyListeners);
   }
 
-  /// Remaining downloads for today
-  int get remainingDownloads {
-    _checkAndResetDailyLimit();
-    return dailyDownloadLimit - _downloadsToday;
-  }
+  final DownloadManagerService _downloadManager;
 
-  void _checkAndResetDailyLimit() {
-    final today = DateTime.now();
-    final lastReset = _lastResetDate;
+  // Accessors for UI
+  List<DownloadTask> get activeJobs => _downloadManager.tasks.where((t) => t.isActive).toList();
+  List<DownloadTask> get history => _downloadManager.tasks.where((t) => !t.isActive).toList();
 
-    if (lastReset == null ||
-        lastReset.year != today.year ||
-        lastReset.month != today.month ||
-        lastReset.day != today.day) {
-      _downloadsToday = 0;
-      _lastResetDate = today;
+  bool get hasActiveDownloads => _downloadManager.hasActiveDownloads;
+  int get activeDownloadCount => activeJobs.length;
+
+  Future<bool> isBackendAvailable() async => true;
+
+  Future<List<DownloadQuality>> fetchQualities() async => DownloadQuality.presets;
+
+  Future<DownloadTask?> downloadTrack(
+    Track track, {
+    required String quality,
+    List<String>? services,
+    String? outputDir,
+    void Function(bool success, String? path, String? error)? onCompleted,
+  }) async {
+    final qualityPreset = DownloadQuality.presets.firstWhere(
+      (q) => q.id == quality,
+      orElse: () => DownloadQuality.presets.first,
+    );
+
+    final task = _downloadManager.enqueue(
+      track: track,
+      qualityId: qualityPreset.id,
+      qualityFormat: qualityPreset.format,
+      qualityBitrate: qualityPreset.bitrate,
+      outputDir: outputDir,
+    );
+
+    if (onCompleted != null) {
+      // Monitor task until completion to fire callback
+      _monitorTask(task.id, onCompleted);
     }
+
+    return task;
   }
 
-  /// Download with smart fallback chain
-  Future<bool> downloadTrack(Track track) async {
-    try {
-      if (isDownloadLimitReached) {
-        throw Exception('Daily download limit reached (50 songs/day)');
+  void _monitorTask(String taskId, void Function(bool, String?, String?) onCompleted) {
+    void listener() {
+      final task = _downloadManager.tasks.firstWhere(
+        (t) => t.id == taskId,
+      );
+      if (!task.isActive) {
+        _downloadManager.removeListener(listener);
+        onCompleted(
+          task.status == DownloadJobStatus.completed,
+          task.filePath,
+          task.error,
+        );
       }
-
-      // Try fallback chain
-      bool success = false;
-
-      // 1. Try Spotify FLAC
-      if (!success) {
-        success = await _downloadFromSpotify(track);
-      }
-
-      // 2. Try Deezer
-      if (!success) {
-        success = await _downloadFromDeezer(track);
-      }
-
-      // 3. Try Apple Music
-      if (!success) {
-        success = await _downloadFromAppleMusic(track);
-      }
-
-      // 4. Try YouTube
-      if (!success) {
-        success = await _downloadFromYouTube(track);
-      }
-
-      if (success) {
-        _downloadsToday++;
-      }
-
-      return success;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Download failed: $e');
-      }
-      rethrow;
     }
+    _downloadManager.addListener(listener);
   }
 
-  /// Download from Spotify (FLAC if available)
-  Future<bool> _downloadFromSpotify(Track track) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Trying Spotify for ${track.title}');
-      }
+  Future<DownloadTask?> downloadFromUrl({
+    required String url,
+    required String quality,
+    List<String>? services,
+    String? outputDir,
+    String title = '',
+    String artist = '',
+  }) async {
+    final track = Track(
+      id: 'url_${DateTime.now().millisecondsSinceEpoch}',
+      title: title.isNotEmpty ? title : 'URL Download',
+      artist: artist.isNotEmpty ? artist : 'Unknown',
+      album: 'Online Download',
+      format: 'M4A',
+      bitDepth: 16,
+      sampleRateKhz: 44,
+      duration: Duration.zero,
+      coverColors: const [],
+      lyrics: const [],
+    );
 
-      // TODO: Implement Spotify download logic
-      // Use Spotify Web API to find track and download
-
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Spotify download failed: $e');
-      }
-      return false;
-    }
+    return downloadTrack(
+      track,
+      quality: quality,
+      services: services,
+      outputDir: outputDir,
+    );
   }
 
-  /// Download from Deezer
-  Future<bool> _downloadFromDeezer(Track track) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Trying Deezer for ${track.title}');
-      }
-
-      // TODO: Implement Deezer download logic
-
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Deezer download failed: $e');
-      }
-      return false;
-    }
+  Future<bool> cancelDownload(String jobId) async {
+    _downloadManager.cancel(jobId);
+    return true;
   }
 
-  /// Download from Apple Music (ALAC/AAC lossless)
-  Future<bool> _downloadFromAppleMusic(Track track) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Trying Apple Music for ${track.title}');
-      }
-
-      // TODO: Implement Apple Music download logic
-
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Apple Music download failed: $e');
-      }
-      return false;
-    }
+  void pauseDownload(String jobId) {
+    _downloadManager.pause(jobId);
   }
 
-  /// Download from YouTube (fallback)
-  Future<bool> _downloadFromYouTube(Track track) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Trying YouTube for ${track.title}');
-      }
-
-      // TODO: Implement YouTube download using yt-dlp
-      // Use FFmpeg for audio extraction and encoding
-
-      return false;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: YouTube download failed: $e');
-      }
-      return false;
-    }
+  void resumeDownload(String jobId) {
+    _downloadManager.resume(jobId);
   }
 
-  /// Bulk download multiple tracks
-  Future<Map<String, bool>> bulkDownload(List<Track> tracks) async {
-    try {
-      final results = <String, bool>{};
-
-      for (final track in tracks) {
-        if (isDownloadLimitReached) {
-          results[track.id] = false;
-        } else {
-          results[track.id] = await downloadTrack(track);
-        }
-      }
-
-      return results;
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Bulk download failed: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Import Spotify playlist
-  Future<List<Track>> importSpotifyPlaylist(String playlistUrl) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Importing Spotify playlist: $playlistUrl');
-      }
-
-      // TODO: Extract playlist ID from URL
-      // Use Spotify API to fetch all tracks from playlist
-      // Return list of tracks
-
-      return [];
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: Playlist import failed: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Import YouTube Music playlist
-  Future<List<Track>> importYouTubeMusicPlaylist(String playlistUrl) async {
-    try {
-      if (kDebugMode) {
-        print('DownloadService: Importing YouTube Music playlist: $playlistUrl');
-      }
-
-      // TODO: Implement YouTube Music playlist import
-
-      return [];
-    } catch (e) {
-      if (kDebugMode) {
-        print('DownloadService: YouTube Music playlist import failed: $e');
-      }
-      rethrow;
-    }
+  @override
+  void dispose() {
+    _downloadManager.removeListener(notifyListeners);
+    super.dispose();
   }
 }

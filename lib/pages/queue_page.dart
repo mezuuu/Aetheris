@@ -25,7 +25,10 @@ class _QueuePageState extends State<QueuePage> {
     return Scaffold(
       body: Stack(
         children: [
-          AmbientBackground(colors: controller.currentTrack.coverColors),
+          AmbientBackground(
+            colors: controller.currentTrack.coverColors,
+            artworkUrl: controller.currentTrack.artworkUrl,
+          ),
           SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -378,19 +381,7 @@ class _QueueTile extends StatelessWidget {
                 const SizedBox(width: 8),
 
                 // Album art
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: LinearGradient(colors: track.coverColors),
-                  ),
-                  child: const Icon(
-                    Icons.graphic_eq_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
+                AlbumArt(track: track, size: 40, radius: 8),
                 const SizedBox(width: 10),
 
                 // Title + artist + badge
@@ -516,19 +507,7 @@ class _TrackMenuSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: LinearGradient(colors: track.coverColors),
-                    ),
-                    child: const Icon(
-                      Icons.graphic_eq_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+                  AlbumArt(track: track, size: 44, radius: 10),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 import '../models/album.dart';
 import '../models/track.dart';
-import '../theme/aetheris_colors.dart';
 import 'demo_library.dart';
 import 'local_music_scanner.dart';
 
@@ -52,15 +51,18 @@ class DemoLibraryRepository implements LibraryRepository {
 
 class LocalMusicLibraryRepository implements LibraryRepository {
   LocalMusicLibraryRepository({
-    String? musicFolderPath,
+    List<String>? allowedLocalFolders,
     this.fallback = const DemoLibraryRepository(),
-  }) : _musicFolderPath = musicFolderPath ?? 'Music' {
-    _snapshot = _scanLocalMusic();
-  }
+  }) : _allowedLocalFolders = allowedLocalFolders ?? const [],
+       _snapshot = const LibrarySnapshot(tracks: <Track>[], albums: <Album>[]);
 
-  final String _musicFolderPath;
+  List<String> _allowedLocalFolders;
   final LibraryRepository fallback;
   late LibrarySnapshot _snapshot;
+  
+  void updateAllowedFolders(List<String> folders) {
+    _allowedLocalFolders = folders;
+  }
 
   @override
   List<Track> get tracks =>
@@ -72,7 +74,7 @@ class LocalMusicLibraryRepository implements LibraryRepository {
 
   @override
   Future<LibrarySnapshot> refresh() async {
-    _snapshot = _scanLocalMusic();
+    _snapshot = await _scanLocalMusic();
     return LibrarySnapshot(tracks: tracks, albums: albums);
   }
 
@@ -82,8 +84,8 @@ class LocalMusicLibraryRepository implements LibraryRepository {
   @override
   List<Track> searchTracks(String query) => _searchTracks(tracks, query);
 
-  LibrarySnapshot _scanLocalMusic() {
-    final files = scanLocalMusicFiles(_musicFolderPath);
+  Future<LibrarySnapshot> _scanLocalMusic() async {
+    final files = await scanLocalMusicFiles(_allowedLocalFolders);
 
     if (files.isEmpty) {
       return const LibrarySnapshot(tracks: <Track>[], albums: <Album>[]);
@@ -92,12 +94,20 @@ class LocalMusicLibraryRepository implements LibraryRepository {
     final parsedTracks = <Track>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
-      final fileName = _basenameWithoutExtension(file.path);
+      final fileName = _basenameWithoutExtension(file.title ?? file.path);
       final dash = fileName.indexOf(' - ');
-      final title = dash > 0 ? fileName.substring(0, dash).trim() : fileName;
+      final title = (file.title != null && file.title!.trim().isNotEmpty)
+          ? file.title!.trim()
+          : dash > 0 ? fileName.substring(0, dash).trim() : fileName;
       final artist =
-          dash > 0 ? fileName.substring(dash + 3).trim() : 'Local Artist';
-      final format = _extensionOf(file.path).toUpperCase();
+          (file.artist != null && file.artist!.trim().isNotEmpty)
+              ? file.artist!.trim()
+              : dash > 0 ? fileName.substring(dash + 3).trim() : 'Local Artist';
+      final album = (file.album != null && file.album!.trim().isNotEmpty)
+          ? file.album!.trim()
+          : 'Local Music';
+      final format = _formatOf(file).toUpperCase();
+      final streamUrls = _streamUrlsFor(file);
       
       final presets = const [
         [Color(0xFF0F273F), Color(0xFF8C5B7D), Color(0xFF101422)],
@@ -116,28 +126,24 @@ class LocalMusicLibraryRepository implements LibraryRepository {
           id: 'local_${i}_${file.path.hashCode}',
           title: title,
           artist: artist,
-          album: 'Local Music',
-          lyrics: const [],
+          album: album,
+          lyrics: _lyricsOf(file),
           format: format,
           bitDepth: format == 'FLAC' || format == 'WAV' ? 24 : 16,
           sampleRateKhz: 44,
-          duration: const Duration(minutes: 3),
+          duration: file.durationMs != null && file.durationMs! > 0
+              ? Duration(milliseconds: file.durationMs!)
+              : const Duration(minutes: 3),
           coverColors: trackCoverColors,
-          streamUrl: file.uri,
+          streamUrl: streamUrls.first,
+          fallbackStreamUrls: streamUrls.skip(1).toList(growable: false),
+          artworkUrl: file.artworkUri,
         ),
       );
     }
 
     final tracks = List<Track>.unmodifiable(parsedTracks);
-    final albums = List<Album>.unmodifiable([
-      Album(
-        id: 'local_music',
-        title: 'Local Music',
-        artist: 'Device Library',
-        description: 'Tracks loaded from local Music folder.',
-        tracks: tracks,
-      ),
-    ]);
+    final albums = _groupLocalAlbumsFromTracks(tracks);
     return LibrarySnapshot(tracks: tracks, albums: albums);
   }
 
@@ -145,6 +151,79 @@ class LocalMusicLibraryRepository implements LibraryRepository {
     final dot = path.lastIndexOf('.');
     if (dot < 0 || dot == path.length - 1) return '';
     return path.substring(dot + 1).toLowerCase();
+  }
+
+  static String _formatOf(LocalMusicFile file) {
+    final mimeType = file.mimeType?.toLowerCase();
+    if (mimeType != null && mimeType.contains('/')) {
+      final subtype = mimeType.split('/').last;
+      if (subtype == 'mpeg') return 'mp3';
+      if (subtype == 'x-wav') return 'wav';
+      if (subtype == 'mp4') return 'aac';
+      return subtype;
+    }
+    final pathFormat = _extensionOf(file.path);
+    if (pathFormat.isNotEmpty) {
+      return pathFormat;
+    }
+    final uriFormat = _extensionOf(file.uri);
+    return uriFormat.isEmpty ? 'audio' : uriFormat;
+  }
+
+  static List<String> _streamUrlsFor(LocalMusicFile file) {
+    final urls = <String>[];
+    if (_looksLikeFilePath(file.path)) {
+      urls.add(Uri.file(file.path).toString());
+    }
+    urls.add(file.uri);
+    final seen = <String>{};
+    return List<String>.unmodifiable(urls.where(seen.add));
+  }
+
+  static bool _looksLikeFilePath(String value) {
+    return value.startsWith('/') || RegExp(r'^[A-Za-z]:[\\/]').hasMatch(value);
+  }
+
+  static List<String> _lyricsOf(LocalMusicFile file) {
+    final lyrics = file.lyrics?.trim();
+    if (lyrics == null || lyrics.isEmpty) {
+      return const [];
+    }
+    return List<String>.unmodifiable(
+      lyrics
+          .split(RegExp(r'\r?\n'))
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty),
+    );
+  }
+
+  static List<Album> _groupLocalAlbumsFromTracks(List<Track> tracks) {
+    final grouped = <String, List<Track>>{};
+    for (final track in tracks) {
+      grouped.putIfAbsent(track.album, () => []).add(track);
+    }
+
+    return List<Album>.unmodifiable(
+      grouped.entries.map((entry) {
+        final albumTracks = List<Track>.unmodifiable(entry.value);
+        final firstTrack = albumTracks.first;
+        return Album(
+          id: _slug(entry.key),
+          title: entry.key,
+          artist: firstTrack.artist,
+          description: 'Local album from this device.',
+          tracks: albumTracks,
+        );
+      }),
+    );
+  }
+
+  static String _slug(String value) {
+    final normalized = value.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '-',
+    );
+    return normalized.replaceAll(RegExp(r'^-+|-+$'), '');
   }
 
   static String _basenameWithoutExtension(String path) {
