@@ -1,12 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/library_repository.dart';
+import '../providers/auth_provider.dart';
+import '../providers/library_provider.dart';
 import '../services/audio_playback_engine.dart';
 import '../services/playback_history_service.dart';
 import '../state/aetheris_scope.dart';
 import '../state/app_settings.dart';
-import '../providers/library_provider.dart';
 import '../state/player_controller.dart';
 import '../theme/aetheris_theme.dart';
 import '../widgets/aetheris_shell.dart';
@@ -50,6 +52,23 @@ class _AetherisAppState extends ConsumerState<AetherisApp> {
       initialPosition: widget.initialPosition,
       autoPlay: false,
       preloadOnIdle: false,
+      onTrackPlayed: (track, position) {
+        if (widget.firebaseReady) {
+          try {
+            ref.read(firestoreSyncProvider).recordListeningEvent(
+              trackId: track.id,
+              source: track.format,
+              title: track.title,
+              artist: track.artist,
+              album: track.album,
+              durationPlayedMs: position.inMilliseconds,
+              totalDurationMs: track.duration.inMilliseconds,
+            );
+          } catch (e) {
+            if (kDebugMode) print('Failed to record listening event: $e');
+          }
+        }
+      },
     );
   }
 

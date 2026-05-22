@@ -22,6 +22,7 @@ class PlayerController extends ChangeNotifier {
     LibraryRepository libraryRepository = const DemoLibraryRepository(),
     AudioPlaybackEngine? audioEngine,
     this.historyService,
+    this.onTrackPlayed,
     bool startPlaybackClock = true,
     bool autoPlay = true,
     bool preloadOnIdle = true,
@@ -86,6 +87,7 @@ class PlayerController extends ChangeNotifier {
   final bool _preloadOnIdle;
   final AudioPlaybackEngine? _audioEngine;
   final PlaybackHistoryService? historyService;
+  final void Function(Track track, Duration position)? onTrackPlayed;
   final LyricsService _lyricsPrefetchService = LyricsService();
   final LosslessStreamService _losslessStreamService =
       const LosslessStreamService();
@@ -549,6 +551,11 @@ class PlayerController extends ChangeNotifier {
           // Save history every 5 seconds
           if (_position.inSeconds % 5 == 0 && _currentTrack.id != 'empty') {
              historyService?.saveLastPlayed(_currentTrack.id, _position);
+          }
+          
+          // Trigger recommendation tracking at 30 seconds
+          if (_position.inSeconds == 30 && _currentTrack.id != 'empty') {
+             onTrackPlayed?.call(_currentTrack, _position);
           }
         }),
       )

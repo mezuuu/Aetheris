@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/track.dart';
+import '../providers/auth_provider.dart';
 import '../providers/search_provider.dart';
 import '../services/spotify_service.dart';
 import '../state/aetheris_scope.dart';
@@ -19,11 +20,44 @@ class ArtistProfilePage extends ConsumerStatefulWidget {
 
 class _ArtistProfilePageState extends ConsumerState<ArtistProfilePage> {
   late Future<_ArtistProfileData> _profileFuture;
+  bool _isFollowing = false;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _loadProfile();
+    _checkFollowStatus();
+  }
+
+  Future<void> _checkFollowStatus() async {
+    final artistId = widget.artist.id;
+    if (artistId.trim().isNotEmpty) {
+      final isFollowing = await ref.read(firestoreSyncProvider).isFollowingArtist(artistId);
+      if (mounted) {
+        setState(() => _isFollowing = isFollowing);
+      }
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final artistId = widget.artist.id;
+    if (artistId.trim().isEmpty) return;
+
+    final syncService = ref.read(firestoreSyncProvider);
+    final isNowFollowing = !_isFollowing;
+    
+    setState(() => _isFollowing = isNowFollowing);
+
+    if (isNowFollowing) {
+      await syncService.followArtist(artistId, {
+        'id': artistId,
+        'name': widget.artist.name,
+        'imageUrl': widget.artist.imageUrl,
+        'followers': widget.artist.followers,
+      });
+    } else {
+      await syncService.unfollowArtist(artistId);
+    }
   }
 
   Future<_ArtistProfileData> _loadProfile() async {
@@ -207,6 +241,29 @@ class _ArtistProfilePageState extends ConsumerState<ArtistProfilePage> {
                               color: AetherisColors.textSecondary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          GestureDetector(
+                            onTap: _toggleFollow,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _isFollowing ? AetherisColors.surfaceRaised : Colors.transparent,
+                                border: Border.all(
+                                  color: _isFollowing ? Colors.transparent : AetherisColors.textSecondary,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                _isFollowing ? 'Following' : 'Follow',
+                                style: TextStyle(
+                                  color: _isFollowing ? AetherisColors.accent : AetherisColors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                           const Spacer(),
